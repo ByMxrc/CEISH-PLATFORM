@@ -100,8 +100,38 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--c-text-subtle);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
+
+.selector-search {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.selector-search__icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--c-text-subtle);
+  pointer-events: none;
+}
+
+.selector-search__input {
+  width: 100%;
+  padding: 7px 10px 7px 30px;
+  font-size: 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  outline: none;
+  transition: border-color 0.12s;
+  box-sizing: border-box;
+}
+
+.selector-search__input::placeholder { color: var(--c-text-subtle); }
+.selector-search__input:focus { border-color: var(--c-primary); }
 
 .selector-panel__list {
   display: flex;
@@ -109,11 +139,17 @@
   gap: 6px;
 }
 
+.selector-empty {
+  font-size: 12px;
+  color: var(--c-text-subtle);
+  padding: 6px 4px;
+}
+
 .selector-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border-radius: var(--r-lg);
   border: 1px solid var(--c-border);
   background: var(--c-surface-2);
@@ -149,11 +185,29 @@
 
 .selector-item__avatar--student { background: #15803d; }
 
-.selector-item__name {
+.selector-item__info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.selector-item__name {
   font-size: 13px;
   color: var(--c-text-2);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selector-item__email {
+  font-size: 11px;
+  color: var(--c-text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assignment-action {

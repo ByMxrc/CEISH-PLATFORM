@@ -4,13 +4,24 @@ import type { User, Assignment } from '../../../shared/types/platform.types';
 import { cn } from '../../../utils/cn';
 
 export function AssignmentPanel() {
-  const evaluators = MOCK_USERS.filter((u) => u.role === 'evaluator');
-  const students = MOCK_USERS.filter((u) => u.role === 'student');
+  const allEvaluators = MOCK_USERS.filter((u) => u.role === 'evaluator');
+  const allStudents = MOCK_USERS.filter((u) => u.role === 'student');
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedEvaluator, setSelectedEvaluator] = useState<User | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
+  const [evalSearch, setEvalSearch] = useState('');
+  const [studentSearch, setStudentSearch] = useState('');
+
+  const evaluators = allEvaluators.filter((u) =>
+    u.name.toLowerCase().includes(evalSearch.toLowerCase()) ||
+    u.email.toLowerCase().includes(evalSearch.toLowerCase())
+  );
+  const students = allStudents.filter((u) =>
+    u.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    u.email.toLowerCase().includes(studentSearch.toLowerCase())
+  );
 
   const load = async () => {
     const all = await platformService.getAssignments();
@@ -52,7 +63,23 @@ export function AssignmentPanel() {
           {/* Evaluator selection */}
           <div className="selector-panel">
             <h3 className="selector-panel__title">Profesor evaluador</h3>
+            <div className="selector-search">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="selector-search__icon">
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M9.5 9.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+              <input
+                className="selector-search__input"
+                type="text"
+                placeholder="Buscar profesor..."
+                value={evalSearch}
+                onChange={(e) => setEvalSearch(e.target.value)}
+              />
+            </div>
             <div className="selector-panel__list">
+              {evaluators.length === 0 && (
+                <p className="selector-empty">Sin resultados</p>
+              )}
               {evaluators.map((ev) => (
                 <button
                   key={ev.id}
@@ -60,7 +87,10 @@ export function AssignmentPanel() {
                   onClick={() => setSelectedEvaluator(ev)}
                 >
                   <span className="selector-item__avatar">{ev.name.charAt(0)}</span>
-                  <span className="selector-item__name">{ev.name}</span>
+                  <span className="selector-item__info">
+                    <span className="selector-item__name">{ev.name}</span>
+                    <span className="selector-item__email">{ev.email}</span>
+                  </span>
                   {selectedEvaluator?.id === ev.id && (
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <circle cx="7" cy="7" r="6" fill="#2563eb" />
@@ -82,7 +112,23 @@ export function AssignmentPanel() {
           {/* Student selection */}
           <div className="selector-panel">
             <h3 className="selector-panel__title">Estudiante</h3>
+            <div className="selector-search">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="selector-search__icon">
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M9.5 9.5l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+              <input
+                className="selector-search__input"
+                type="text"
+                placeholder="Buscar estudiante..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+              />
+            </div>
             <div className="selector-panel__list">
+              {students.length === 0 && (
+                <p className="selector-empty">Sin resultados</p>
+              )}
               {students.map((st) => (
                 <button
                   key={st.id}
@@ -90,7 +136,10 @@ export function AssignmentPanel() {
                   onClick={() => setSelectedStudent(st)}
                 >
                   <span className="selector-item__avatar selector-item__avatar--student">{st.name.charAt(0)}</span>
-                  <span className="selector-item__name">{st.name}</span>
+                  <span className="selector-item__info">
+                    <span className="selector-item__name">{st.name}</span>
+                    <span className="selector-item__email">{st.email}</span>
+                  </span>
                   {selectedStudent?.id === st.id && (
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <circle cx="7" cy="7" r="6" fill="#2563eb" />
