@@ -1,0 +1,113 @@
+.submission-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 680px;
+}
+
+.submission-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.submission-card__doc-icon { flex-shrink: 0; }
+
+.submission-card__info { flex: 1; min-width: 0; }
+
+.submission-card__filename {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.submission-card__date {
+  font-size: 12px;
+  color: var(--c-text-muted);
+  margin-top: 2px;
+}
+
+.submission-card__comment {
+  padding: 12px;
+  background: var(--c-surface-2);
+  border-radius: var(--r-md);
+  border-left: 3px solid var(--c-border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.submission-card__comment-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-subtle);
+}
+
+.submission-card__comment-text {
+  font-size: 13px;
+  color: var(--c-text-2);
+  line-height: 1.55;
+}
+
+.submission-card__result {
+  border-top: 1px solid var(--c-border);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.submission-card__grade {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.submission-card__grade-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+}
+
+.submission-card__grade-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--c-success-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.submission-card__grade-max {
+  font-size: 14px;
+  color: var(--c-text-muted);
+  font-weight: 400;
+}
+
+.submission-card__review-date {
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+.submission-card__final-comment {
+  padding: 12px;
+  background: var(--c-success-bg);
+  border: 1px solid var(--c-success-border);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.submission-card__actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+}

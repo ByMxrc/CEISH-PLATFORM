@@ -1,0 +1,103 @@
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '../../store/authStore';
+import { platformService } from '../../shared/services/platformService';
+import type { StudentSubmission } from '../../shared/types/platform.types';
+import { SubmissionCard } from './components/SubmissionCard';
+import { UploadModal } from './components/UploadModal';
+import './student.css';
+
+type ModalMode = 'create' | 'edit' | null;
+
+export function SubmissionPage() {
+  const currentUser = useAuthStore((s) => s.currentUser)!;
+  const [submission, setSubmission] = useState<StudentSubmission | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const sub = await platformService.getSubmissionForStudent(currentUser.id);
+    setSubmission(sub);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [currentUser.id]);
+
+  const handleConfirm = async (file: File, comment: string) => {
+    if (modalMode === 'create') {
+      const sub = await platformService.createSubmission(currentUser.id, file.name, comment);
+      setSubmission(sub);
+    } else if (modalMode === 'edit' && submission) {
+      const sub = await platformService.updateSubmission(submission.id, { documentName: file.name, comment });
+      setSubmission(sub);
+    }
+    setModalMode(null);
+  };
+
+  const handleDelete = async () => {
+    if (!submission) return;
+    if (!window.confirm('¿Estás seguro de que deseas eliminar tu entrega?')) return;
+    await platformService.deleteSubmission(submission.id);
+    setSubmission(null);
+  };
+
+  return (
+    <div className="page">
+      <div className="page__header">
+        <div>
+          <h1 className="page__title">Mi entrega</h1>
+          <p className="page__subtitle">Gestiona el documento de tu proyecto</p>
+        </div>
+        {!submission && !loading && (
+          <button className="eval-btn eval-btn--primary" onClick={() => setModalMode('create')}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 2v11M2 7.5h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            Agregar documento
+          </button>
+        )}
+      </div>
+
+      <div className="page__body">
+        {loading ? (
+          <div className="page__loading">
+            <div className="pdf-spinner" />
+            <span>Cargando...</span>
+          </div>
+        ) : submission ? (
+          <SubmissionCard
+            submission={submission}
+            onEdit={() => setModalMode('edit')}
+            onDelete={handleDelete}
+          />
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state__icon">
+              <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <rect width="52" height="52" rx="14" fill="#f1f5f9" />
+                <path d="M15 12h22a4 4 0 014 4v20a4 4 0 01-4 4H15a4 4 0 01-4-4V16a4 4 0 014-4z" stroke="#94a3b8" strokeWidth="1.8" fill="none" />
+                <path d="M26 21v10M21 26h10" stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </div>
+            <h2 className="empty-state__title">Aún no has subido ningún documento</h2>
+            <p className="empty-state__desc">
+              Cuando estés listo, sube tu proyecto para que pueda ser revisado por tu evaluador.
+            </p>
+            <button className="eval-btn eval-btn--primary" onClick={() => setModalMode('create')}>
+              Agregar documento
+            </button>
+          </div>
+        )}
+      </div>
+
+      {modalMode && (
+        <UploadModal
+          mode={modalMode}
+          initialComment={submission?.comment}
+          onConfirm={handleConfirm}
+          onCancel={() => setModalMode(null)}
+        />
+      )}
+    </div>
+  );
+}
