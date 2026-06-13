@@ -84,7 +84,7 @@ export function AssignmentPanel() {
                 <button
                   key={ev.id}
                   className={cn('selector-item', selectedEvaluator?.id === ev.id && 'selector-item--selected')}
-                  onClick={() => setSelectedEvaluator(ev)}
+                  onClick={() => setSelectedEvaluator(selectedEvaluator?.id === ev.id ? null : ev)}
                 >
                   <span className="selector-item__avatar">{ev.name.charAt(0)}</span>
                   <span className="selector-item__info">
@@ -133,7 +133,7 @@ export function AssignmentPanel() {
                 <button
                   key={st.id}
                   className={cn('selector-item', selectedStudent?.id === st.id && 'selector-item--selected')}
-                  onClick={() => setSelectedStudent(st)}
+                  onClick={() => setSelectedStudent(selectedStudent?.id === st.id ? null : st)}
                 >
                   <span className="selector-item__avatar selector-item__avatar--student">{st.name.charAt(0)}</span>
                   <span className="selector-item__info">
