@@ -1,228 +1,223 @@
-import type { User, StudentSubmission, Review, Assignment, ReviewStage } from '../types/platform.types';
+// ============================================================================
+// platformService — punto único de intercambio mock → API real.
+//
+// Mantiene exactamente la misma interfaz que consumían los hooks y componentes,
+// pero ahora cada método llama a las rutas /api/* (respaldadas por PostgreSQL)
+// y mapea las filas de la BD a los tipos que la UI ya espera.
+//
+// Diferencias BD ↔ UI que se traducen aquí:
+//   - rol  'teacher'   (BD) ↔ 'evaluator'    (UI)
+//   - estado 'submitted' (BD) ↔ 'under-review' (UI)
+// ============================================================================
 
-// ─── Static reference data ───────────────────────────────────────────────────
+import type {
+  User, UserRole, StudentSubmission, SubmissionStatus,
+  Review, ReviewStage, Assignment,
+} from '../types/platform.types';
+import type { Criterion, CriterionStatus } from '../../features/evaluation/types/evaluation.types';
 
-export const MOCK_USERS: User[] = [
-  { id: 'u-0', name: 'Admin CEISH', email: 'admin@ceish.edu', role: 'admin' },
-  { id: 'u-1', name: 'Prof. García', email: 'garcia@ceish.edu', role: 'evaluator' },
-  { id: 'u-2', name: 'Prof. Martínez', email: 'martinez@ceish.edu', role: 'evaluator' },
-  { id: 'u-3', name: 'Juan Pérez', email: 'juan@ceish.edu', role: 'student' },
-  { id: 'u-4', name: 'María López', email: 'maria@ceish.edu', role: 'student' },
-  { id: 'u-5', name: 'Carlos Ruiz', email: 'carlos@ceish.edu', role: 'student' },
-];
+// ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
-// ─── Mutable in-memory state ──────────────────────────────────────────────────
-
-const submissions: StudentSubmission[] = [
-  {
-    id: 'sub-1',
-    studentId: 'u-3',
-    documentName: 'Proyecto_Final_Juan.pdf',
-    comment: 'Primera versión del proyecto de investigación.',
-    status: 'reviewed',
-    submittedAt: '2024-05-10T09:00:00.000Z',
-    reviewedAt: '2024-05-15T14:30:00.000Z',
-    grade: 8.5,
-    finalComment:
-      'El documento cumple con los criterios establecidos. Se recomienda ampliar la sección de metodología en futuras versiones.',
-  },
-  {
-    id: 'sub-2',
-    studentId: 'u-4',
-    documentName: 'Tesis_Investigacion_Maria.pdf',
-    comment: 'Entrega correspondiente al segundo semestre.',
-    status: 'under-review',
-    submittedAt: '2024-05-12T11:00:00.000Z',
-  },
-];
-
-const assignments: Assignment[] = [
-  { id: 'a-1', evaluatorId: 'u-1', studentId: 'u-3', createdAt: '2024-05-01T00:00:00.000Z' },
-  { id: 'a-2', evaluatorId: 'u-1', studentId: 'u-4', createdAt: '2024-05-01T00:00:00.000Z' },
-  { id: 'a-3', evaluatorId: 'u-2', studentId: 'u-5', createdAt: '2024-05-01T00:00:00.000Z' },
-];
-
-// ─── Stage templates ──────────────────────────────────────────────────────────
-
-function buildStages(): ReviewStage[] {
-  return [
-    {
-      id: 'stage-1', name: 'Estructura', order: 1, status: 'in-progress',
-      criteria: [
-        { id: 's1-c1', label: 'El documento contiene una introducción clara', category: 'Estructura', status: 'pending', observation: '' },
-        { id: 's1-c2', label: 'Los objetivos están claramente definidos', category: 'Estructura', status: 'pending', observation: '' },
-        { id: 's1-c3', label: 'La hipótesis o pregunta de investigación está planteada', category: 'Estructura', status: 'pending', observation: '' },
-      ],
-    },
-    {
-      id: 'stage-2', name: 'Metodología', order: 2, status: 'pending',
-      criteria: [
-        { id: 's2-c1', label: 'La metodología es apropiada para el tipo de investigación', category: 'Metodología', status: 'pending', observation: '' },
-        { id: 's2-c2', label: 'La población de estudio está correctamente definida', category: 'Metodología', status: 'pending', observation: '' },
-        { id: 's2-c3', label: 'Los instrumentos de recolección están descritos', category: 'Metodología', status: 'pending', observation: '' },
-      ],
-    },
-    {
-      id: 'stage-3', name: 'Resultados', order: 3, status: 'pending',
-      criteria: [
-        { id: 's3-c1', label: 'Los resultados se presentan de forma clara y ordenada', category: 'Resultados', status: 'pending', observation: '' },
-        { id: 's3-c2', label: 'El análisis estadístico es correcto y justificado', category: 'Resultados', status: 'pending', observation: '' },
-        { id: 's3-c3', label: 'Las conclusiones responden a los objetivos planteados', category: 'Resultados', status: 'pending', observation: '' },
-      ],
-    },
-    {
-      id: 'stage-4', name: 'Formato', order: 4, status: 'pending',
-      criteria: [
-        { id: 's4-c1', label: 'Las referencias bibliográficas están en formato APA', category: 'Formato', status: 'pending', observation: '' },
-        { id: 's4-c2', label: 'El documento cumple con los criterios de extensión mínima', category: 'Formato', status: 'pending', observation: '' },
-      ],
-    },
-  ];
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
-const reviews: Review[] = [
-  {
-    id: 'rev-1',
-    submissionId: 'sub-1',
-    evaluatorId: 'u-1',
-    studentId: 'u-3',
-    currentStageIndex: 3,
-    finalComment: 'El documento cumple con los criterios establecidos. Se recomienda ampliar la sección de metodología en futuras versiones.',
-    completedAt: '2024-05-15T14:30:00.000Z',
-    grade: 8.5,
-    stages: buildStages().map((s) => ({
-      ...s,
-      status: 'completed' as const,
-      criteria: s.criteria.map((c) => ({ ...c, status: 'approved' as const })),
-    })),
-  },
-  {
-    id: 'rev-2',
-    submissionId: 'sub-2',
-    evaluatorId: 'u-1',
-    studentId: 'u-4',
-    currentStageIndex: 1,
-    stages: buildStages().map((s, i) => ({
-      ...s,
-      status: i === 0 ? ('completed' as const) : i === 1 ? ('in-progress' as const) : ('pending' as const),
+async function apiSend<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+// ─── DTOs (forma cruda que devuelve la API) ──────────────────────────────────
+
+interface UserDTO { id: string; name: string; email: string; role: string }
+interface SubmissionDTO {
+  id: string; student_id: string; document_name: string; document_url: string;
+  comment: string; status: string; submitted_at: string;
+  reviewed_at: string | null; grade: number | null; final_comment: string | null;
+}
+interface AssignmentDTO {
+  id: string; teacher_id: string; student_id: string; created_at: string;
+}
+interface AnnotationDTO { page_number: number }
+interface CriterionDTO { id: string; criterion: string; status: string; comment: string; annotations: AnnotationDTO[] }
+interface StageDTO { id: string; stage_number: number; status: string; criteria: CriterionDTO[] }
+interface ReviewDTO {
+  id: string; submission_id: string; student_id: string; reviewer_id: string;
+  comment: string; grade: number | null; status: string; created_at: string; stages: StageDTO[];
+}
+
+// ─── Mapeos BD → UI ──────────────────────────────────────────────────────────
+
+const STAGE_NAMES = ['Estructura', 'Metodología', 'Resultados', 'Formato'];
+
+const num = (v: number | string | null): number | undefined =>
+  v == null ? undefined : Number(v);
+
+function mapRole(dbRole: string): UserRole {
+  return dbRole === 'teacher' ? 'evaluator' : (dbRole as UserRole);
+}
+
+function mapSubStatus(dbStatus: string): SubmissionStatus {
+  return dbStatus === 'submitted' ? 'under-review' : (dbStatus as SubmissionStatus);
+}
+
+function mapUser(d: UserDTO): User {
+  return { id: d.id, name: d.name, email: d.email, role: mapRole(d.role) };
+}
+
+function mapSubmission(d: SubmissionDTO): StudentSubmission {
+  return {
+    id: d.id,
+    studentId: d.student_id,
+    documentName: d.document_name,
+    comment: d.comment,
+    status: mapSubStatus(d.status),
+    submittedAt: d.submitted_at,
+    reviewedAt: d.reviewed_at ?? undefined,
+    grade: num(d.grade),
+    finalComment: d.final_comment ?? undefined,
+  };
+}
+
+function mapAssignment(d: AssignmentDTO): Assignment {
+  return { id: d.id, evaluatorId: d.teacher_id, studentId: d.student_id, createdAt: d.created_at };
+}
+
+function mapReview(d: ReviewDTO): Review {
+  const stages: ReviewStage[] = d.stages
+    .slice()
+    .sort((a, b) => a.stage_number - b.stage_number)
+    .map((s) => {
+      const name = STAGE_NAMES[s.stage_number - 1] ?? `Etapa ${s.stage_number}`;
+      const criteria: Criterion[] = s.criteria.map((c) => ({
+        id: c.id,
+        label: c.criterion,
+        category: name,
+        status: c.status as CriterionStatus,
+        observation: c.comment,
+        pageReference: c.annotations[0] ? Number(c.annotations[0].page_number) : undefined,
+      }));
+      return { id: s.id, name, order: s.stage_number, status: s.status as ReviewStage['status'], criteria };
+    });
+
+  // currentStageIndex se deriva del estado de las etapas (la BD no lo almacena)
+  let currentStageIndex = stages.findIndex((s) => s.status === 'in-progress');
+  if (currentStageIndex === -1) {
+    currentStageIndex = stages.every((s) => s.status === 'completed') ? stages.length - 1 : 0;
+  }
+
+  return {
+    id: d.id,
+    submissionId: d.submission_id,
+    evaluatorId: d.reviewer_id,
+    studentId: d.student_id,
+    stages,
+    currentStageIndex,
+    finalComment: d.comment || undefined,
+    completedAt: d.status === 'completed' ? d.created_at : undefined,
+    grade: num(d.grade),
+  };
+}
+
+// ─── Mapeo UI → BD (para guardar la revisión) ────────────────────────────────
+
+function toSaveReviewPayload(review: Review) {
+  return {
+    reviewId: review.id,
+    submissionId: review.submissionId,
+    status: review.completedAt ? 'completed' : 'in-progress',
+    comment: review.finalComment ?? '',
+    grade: review.grade ?? null,
+    stages: review.stages.map((s) => ({
+      stageNumber: s.order,
+      status: s.status,
+      completedAt: s.status === 'completed' ? new Date().toISOString() : null,
       criteria: s.criteria.map((c) => ({
-        ...c,
-        status: i === 0 ? ('approved' as const) : ('pending' as const),
+        id: c.id,
+        status: c.status,
+        comment: c.observation ?? '',
+        pageReference: c.pageReference ?? null,
       })),
     })),
-  },
-];
+  };
+}
 
 // ─── Service ──────────────────────────────────────────────────────────────────
-
-const delay = (ms = 150) => new Promise<void>((r) => setTimeout(r, ms));
 
 export const platformService = {
   // Users
   async getUsers(): Promise<User[]> {
-    await delay();
-    return structuredClone(MOCK_USERS);
+    const data = await apiGet<UserDTO[]>('/api/users');
+    return data.map(mapUser);
   },
 
   // Submissions
   async getSubmissionForStudent(studentId: string): Promise<StudentSubmission | null> {
-    await delay();
-    return structuredClone(submissions.find((s) => s.studentId === studentId) ?? null);
+    const data = await apiGet<SubmissionDTO | null>(`/api/submissions?studentId=${studentId}`);
+    return data ? mapSubmission(data) : null;
   },
 
   async getAllSubmissions(): Promise<StudentSubmission[]> {
-    await delay();
-    return structuredClone(submissions);
+    const data = await apiGet<SubmissionDTO[]>('/api/submissions');
+    return data.map(mapSubmission);
   },
 
   async createSubmission(studentId: string, documentName: string, comment: string): Promise<StudentSubmission> {
-    await delay();
-    const sub: StudentSubmission = {
-      id: `sub-${Date.now()}`,
-      studentId,
-      documentName,
-      comment,
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-    };
-    submissions.push(sub);
-    return structuredClone(sub);
+    const data = await apiSend<SubmissionDTO>('POST', '/api/submissions', { studentId, documentName, comment });
+    return mapSubmission(data);
   },
 
-  async updateSubmission(id: string, patch: Partial<Pick<StudentSubmission, 'documentName' | 'comment'>>): Promise<StudentSubmission> {
-    await delay();
-    const idx = submissions.findIndex((s) => s.id === id);
-    if (idx === -1) throw new Error('Submission not found');
-    submissions[idx] = { ...submissions[idx], ...patch };
-    return structuredClone(submissions[idx]);
+  async updateSubmission(
+    id: string,
+    patch: Partial<Pick<StudentSubmission, 'documentName' | 'comment'>>,
+  ): Promise<StudentSubmission> {
+    const data = await apiSend<SubmissionDTO>('PATCH', `/api/submissions/${id}`, {
+      documentName: patch.documentName,
+      comment: patch.comment,
+    });
+    return mapSubmission(data);
   },
 
   async deleteSubmission(id: string): Promise<void> {
-    await delay();
-    const idx = submissions.findIndex((s) => s.id === id);
-    if (idx !== -1) submissions.splice(idx, 1);
+    await apiSend('DELETE', `/api/submissions/${id}`);
   },
 
   // Assignments
   async getAssignments(): Promise<Assignment[]> {
-    await delay();
-    return structuredClone(assignments);
+    const data = await apiGet<AssignmentDTO[]>('/api/assignments');
+    return data.map(mapAssignment);
   },
 
   async getAssignmentsForEvaluator(evaluatorId: string): Promise<Assignment[]> {
-    await delay();
-    return structuredClone(assignments.filter((a) => a.evaluatorId === evaluatorId));
+    const data = await apiGet<AssignmentDTO[]>(`/api/assignments?teacherId=${evaluatorId}`);
+    return data.map(mapAssignment);
   },
 
   async createAssignment(evaluatorId: string, studentId: string): Promise<Assignment> {
-    await delay();
-    const exists = assignments.find((a) => a.evaluatorId === evaluatorId && a.studentId === studentId);
-    if (exists) return structuredClone(exists);
-    const a: Assignment = { id: `a-${Date.now()}`, evaluatorId, studentId, createdAt: new Date().toISOString() };
-    assignments.push(a);
-    return structuredClone(a);
+    const data = await apiSend<AssignmentDTO>('POST', '/api/assignments', {
+      teacherId: evaluatorId, studentId,
+    });
+    return mapAssignment(data);
   },
 
   async deleteAssignment(id: string): Promise<void> {
-    await delay();
-    const idx = assignments.findIndex((a) => a.id === id);
-    if (idx !== -1) assignments.splice(idx, 1);
+    await apiSend('DELETE', `/api/assignments/${id}`);
   },
 
   // Reviews
   async getOrCreateReview(submissionId: string, evaluatorId: string): Promise<Review> {
-    await delay();
-    const existing = reviews.find((r) => r.submissionId === submissionId);
-    if (existing) return structuredClone(existing);
-    const sub = submissions.find((s) => s.id === submissionId);
-    const newReview: Review = {
-      id: `rev-${Date.now()}`,
-      submissionId,
-      evaluatorId,
-      studentId: sub?.studentId ?? '',
-      currentStageIndex: 0,
-      stages: buildStages(),
-    };
-    reviews.push(newReview);
-    return structuredClone(newReview);
+    const data = await apiSend<ReviewDTO>('POST', '/api/reviews', { submissionId, evaluatorId });
+    return mapReview(data);
   },
 
   async saveReview(review: Review): Promise<void> {
-    await delay(100);
-    const idx = reviews.findIndex((r) => r.id === review.id);
-    if (idx !== -1) reviews[idx] = structuredClone(review);
-    // Sync submission status when review is completed
-    if (review.completedAt) {
-      const subIdx = submissions.findIndex((s) => s.id === review.submissionId);
-      if (subIdx !== -1) {
-        submissions[subIdx] = {
-          ...submissions[subIdx],
-          status: 'reviewed',
-          reviewedAt: review.completedAt,
-          grade: review.grade,
-          finalComment: review.finalComment,
-        };
-      }
-    }
+    await apiSend('PUT', `/api/reviews/${review.id}`, toSaveReviewPayload(review));
   },
 };

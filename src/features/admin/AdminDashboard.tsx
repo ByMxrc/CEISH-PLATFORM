@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { platformService, MOCK_USERS } from '../../shared/services/platformService';
+import { platformService } from '../../shared/services/platformService';
 import type { User, StudentSubmission, Assignment } from '../../shared/types/platform.types';
 import './admin.css';
 
@@ -23,14 +23,15 @@ export function AdminDashboard() {
 
   const load = async () => {
     setLoading(true);
-    const [assignments, allSubs]: [Assignment[], StudentSubmission[]] = await Promise.all([
+    const [users, assignments, allSubs]: [User[], Assignment[], StudentSubmission[]] = await Promise.all([
+      platformService.getUsers(),
       platformService.getAssignments(),
       platformService.getAllSubmissions(),
     ]);
-    const evaluators = MOCK_USERS.filter((u) => u.role === 'evaluator');
+    const evaluators = users.filter((u) => u.role === 'evaluator');
     const result: EvaluatorRow[] = evaluators.map((ev) => {
       const studentIds = assignments.filter((a) => a.evaluatorId === ev.id).map((a) => a.studentId);
-      const students = MOCK_USERS.filter((u) => studentIds.includes(u.id)).map((s) => ({
+      const students = users.filter((u) => studentIds.includes(u.id)).map((s) => ({
         student: s,
         submission: allSubs.find((sub) => sub.studentId === s.id) ?? null,
       }));

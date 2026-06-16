@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
-import { platformService, MOCK_USERS } from '../../../shared/services/platformService';
+import { platformService } from '../../../shared/services/platformService';
 import type { User, Assignment } from '../../../shared/types/platform.types';
 import { cn } from '../../../utils/cn';
 
 export function AssignmentPanel() {
-  const allEvaluators = MOCK_USERS.filter((u) => u.role === 'evaluator');
-  const allStudents = MOCK_USERS.filter((u) => u.role === 'student');
-
+  const [users, setUsers] = useState<User[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedEvaluator, setSelectedEvaluator] = useState<User | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [evalSearch, setEvalSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
+
+  const allEvaluators = users.filter((u) => u.role === 'evaluator');
+  const allStudents = users.filter((u) => u.role === 'student');
 
   const evaluators = allEvaluators.filter((u) =>
     u.name.toLowerCase().includes(evalSearch.toLowerCase()) ||
@@ -28,7 +29,10 @@ export function AssignmentPanel() {
     setAssignments(all);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    platformService.getUsers().then(setUsers);
+    load();
+  }, []);
 
   const isAssigned = (evaluatorId: string, studentId: string) =>
     assignments.some((a) => a.evaluatorId === evaluatorId && a.studentId === studentId);
@@ -173,8 +177,8 @@ export function AssignmentPanel() {
             <p className="empty-state__title" style={{ fontSize: '13px' }}>No hay asignaciones</p>
           ) : (
             assignments.map((a) => {
-              const ev = MOCK_USERS.find((u) => u.id === a.evaluatorId);
-              const st = MOCK_USERS.find((u) => u.id === a.studentId);
+              const ev = users.find((u) => u.id === a.evaluatorId);
+              const st = users.find((u) => u.id === a.studentId);
               if (!ev || !st) return null;
               return (
                 <div key={a.id} className="assignment-row">

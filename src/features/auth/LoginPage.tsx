@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { MOCK_USERS } from '../../shared/services/platformService';
+import { platformService } from '../../shared/services/platformService';
 import type { User } from '../../shared/types/platform.types';
 import './login.css';
 
@@ -16,6 +17,14 @@ const ROLE_HOME: Record<string, string> = {
 export function LoginPage() {
   const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    platformService.getUsers()
+      .then(setUsers)
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleSelect = (user: User) => {
     setUser(user);
@@ -24,7 +33,7 @@ export function LoginPage() {
 
   const grouped = ROLE_ORDER.map((role) => ({
     role,
-    users: MOCK_USERS.filter((u) => u.role === role),
+    users: users.filter((u) => u.role === role),
   }));
 
   return (
@@ -41,7 +50,9 @@ export function LoginPage() {
           </div>
         </div>
 
-        <p className="login-prompt">Selecciona tu usuario para continuar</p>
+        <p className="login-prompt">
+          {loading ? 'Cargando usuarios...' : 'Selecciona tu usuario para continuar'}
+        </p>
 
         <div className="login-groups">
           {grouped.map(({ role, users }) => (

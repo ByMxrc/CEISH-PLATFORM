@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { platformService, MOCK_USERS } from '../../shared/services/platformService';
+import { platformService } from '../../shared/services/platformService';
 import type { User, StudentSubmission } from '../../shared/types/platform.types';
 import { StudentCard } from './components/StudentCard';
 import './evaluator.css';
@@ -28,12 +28,13 @@ export function EvaluatorDashboard() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [assignments, allSubs] = await Promise.all([
+      const [users, assignments, allSubs] = await Promise.all([
+        platformService.getUsers(),
         platformService.getAssignmentsForEvaluator(currentUser.id),
         platformService.getAllSubmissions(),
       ]);
       const studentIds = assignments.map((a) => a.studentId);
-      const students = MOCK_USERS.filter((u) => studentIds.includes(u.id));
+      const students = users.filter((u) => studentIds.includes(u.id));
       const result: StudentRow[] = students.map((s) => ({
         student: s,
         submission: allSubs.find((sub) => sub.studentId === s.id) ?? null,
