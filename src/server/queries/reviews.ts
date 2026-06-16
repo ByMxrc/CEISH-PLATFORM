@@ -1,6 +1,6 @@
 // Consultas SQL del dominio de revisiones (lado servidor).
 // Una revisión se devuelve con sus etapas, criterios y anotaciones anidados.
-import { query } from '../../lib/database';
+import { query, withTransaction } from '../../lib/database';
 
 export interface AnnotationRow {
   id: string;
@@ -159,48 +159,58 @@ export async function getReviewBySubmission(submissionId: string): Promise<Revie
   };
 }
 
-/** Devuelve la revisión existente de una entrega o crea una nueva con sus 4 etapas. */
+/**
+ * Devuelve la revisión existente de una entrega o crea una nueva con sus 4 etapas.
+ *
+ * Es seguro ante llamadas concurrentes (p. ej. el doble montaje de efectos de
+ * React en desarrollo): un advisory lock por submission serializa la creación,
+ * de modo que la segunda llamada encuentra la revisión ya creada en lugar de
+ * violar la restricción única.
+ */
 export async function getOrCreateReview(
   submissionId: string,
   evaluatorId: string,
 ): Promise<ReviewRow> {
-  const existing = await getReviewBySubmission(submissionId);
-  if (existing) return existing;
+  await withTransaction(async (client) => {
+    // Serializa por submission: la 2ª llamada espera aquí hasta que la 1ª haga COMMIT.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [submissionId]);
 
-  // Crear la revisión
-  const inserted = await query<{ id: string }>(
-    `INSERT INTO reviews (submission_id, reviewer_id, status)
-     VALUES ($1, $2, 'in-progress')
-     RETURNING id`,
-    [submissionId, evaluatorId],
-  );
-  const reviewId = inserted[0].id;
+    const existing = await client.query('SELECT id FROM reviews WHERE submission_id = $1', [submissionId]);
+    if (existing.rows.length > 0) return;
 
-  // Crear etapas y criterios desde la plantilla
-  for (let i = 0; i < STAGE_TEMPLATE.length; i++) {
-    const stageNumber = i + 1;
-    const stageStatus = i === 0 ? 'in-progress' : 'pending';
-    const stage = await query<{ id: string }>(
-      `INSERT INTO review_stages (review_id, stage_number, status)
-       VALUES ($1, $2, $3)
+    const inserted = await client.query<{ id: string }>(
+      `INSERT INTO reviews (submission_id, reviewer_id, status)
+       VALUES ($1, $2, 'in-progress')
        RETURNING id`,
-      [reviewId, stageNumber, stageStatus],
+      [submissionId, evaluatorId],
     );
-    const stageId = stage[0].id;
-    for (const criterion of STAGE_TEMPLATE[i].criteria) {
-      await query(
-        `INSERT INTO criteria_evaluations (stage_id, criterion, status)
-         VALUES ($1, $2, 'pending')`,
-        [stageId, criterion],
-      );
-    }
-  }
+    const reviewId = inserted.rows[0].id;
 
-  // Al abrir la revisión, la entrega pasa a "en revisión" (submitted)
-  await query(
-    `UPDATE submissions SET status = 'submitted' WHERE id = $1 AND status = 'pending'`,
-    [submissionId],
-  );
+    for (let i = 0; i < STAGE_TEMPLATE.length; i++) {
+      const stageNumber = i + 1;
+      const stageStatus = i === 0 ? 'in-progress' : 'pending';
+      const stage = await client.query<{ id: string }>(
+        `INSERT INTO review_stages (review_id, stage_number, status)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [reviewId, stageNumber, stageStatus],
+      );
+      const stageId = stage.rows[0].id;
+      for (const criterion of STAGE_TEMPLATE[i].criteria) {
+        await client.query(
+          `INSERT INTO criteria_evaluations (stage_id, criterion, status)
+           VALUES ($1, $2, 'pending')`,
+          [stageId, criterion],
+        );
+      }
+    }
+
+    // Al abrir la revisión, la entrega pasa a "en revisión" (submitted)
+    await client.query(
+      `UPDATE submissions SET status = 'submitted' WHERE id = $1 AND status = 'pending'`,
+      [submissionId],
+    );
+  });
 
   return (await getReviewBySubmission(submissionId))!;
 }
