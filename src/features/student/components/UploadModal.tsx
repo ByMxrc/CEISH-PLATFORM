@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { validatePdf, MAX_MB } from '../../../services/storage';
 
 interface Props {
   onConfirm: (file: File, comment: string) => void;
@@ -17,17 +18,28 @@ function formatBytes(bytes: number): string {
 export function UploadModal({ onConfirm, onCancel, initialFile, initialComment = '', mode = 'create' }: Props) {
   const [file, setFile] = useState<File | null>(initialFile ?? null);
   const [comment, setComment] = useState(initialComment);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const selectFile = (f: File | undefined | null) => {
+    if (!f) return;
+    const validationError = validatePdf(f);
+    if (validationError) {
+      setError(validationError);
+      setFile(null);
+      return;
+    }
+    setError(null);
+    setFile(f);
+  };
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) setFile(f);
+    selectFile(e.target.files?.[0]);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f?.type === 'application/pdf') setFile(f);
+    selectFile(e.dataTransfer.files[0]);
   };
 
   const canConfirm = file !== null;
@@ -82,11 +94,12 @@ export function UploadModal({ onConfirm, onCancel, initialFile, initialComment =
                   <path d="M20 12v16M12 20h16" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
                 </svg>
                 <p className="upload-zone__empty-title">Selecciona un archivo PDF</p>
-                <p className="upload-zone__empty-desc">Arrastra aquí o haz clic para explorar</p>
+                <p className="upload-zone__empty-desc">Arrastra aquí o haz clic para explorar · máx. {MAX_MB} MB</p>
               </div>
             )}
           </div>
           <input ref={fileRef} type="file" accept=".pdf,application/pdf" onChange={handleFile} style={{ display: 'none' }} />
+          {error && <p className="upload-zone__error">{error}</p>}
 
           {/* Comment field */}
           <div className="modal__field">

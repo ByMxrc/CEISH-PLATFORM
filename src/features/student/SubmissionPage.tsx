@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { platformService } from '../../shared/services/platformService';
+import { submissionsService } from '../../services/submissions';
 import type { StudentSubmission } from '../../shared/types/platform.types';
 import { SubmissionCard } from './components/SubmissionCard';
 import { UploadModal } from './components/UploadModal';
@@ -16,7 +16,7 @@ export function SubmissionPage() {
 
   const load = async () => {
     setLoading(true);
-    const sub = await platformService.getSubmissionForStudent(currentUser.id);
+    const sub = await submissionsService.getForStudent(currentUser.id);
     setSubmission(sub);
     setLoading(false);
   };
@@ -24,20 +24,34 @@ export function SubmissionPage() {
   useEffect(() => { load(); }, [currentUser.id]);
 
   const handleConfirm = async (file: File, comment: string) => {
-    if (modalMode === 'create') {
-      const sub = await platformService.createSubmission(currentUser.id, file.name, comment);
-      setSubmission(sub);
-    } else if (modalMode === 'edit' && submission) {
-      const sub = await platformService.updateSubmission(submission.id, { documentName: file.name, comment });
-      setSubmission(sub);
+    try {
+      if (modalMode === 'create') {
+        const sub = await submissionsService.createWithDocument(currentUser.id, file, comment);
+        setSubmission(sub);
+      } else if (modalMode === 'edit' && submission) {
+        const sub = await submissionsService.updateWithDocument(submission.id, file, comment);
+        setSubmission(sub);
+      }
+      setModalMode(null);
+    } catch (e) {
+      window.alert(`No se pudo subir el documento: ${(e as Error).message}`);
     }
-    setModalMode(null);
+  };
+
+  const handleView = async () => {
+    if (!submission) return;
+    try {
+      const url = await submissionsService.getDocumentUrl(submission.id);
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      window.alert(`No se pudo abrir el documento: ${(e as Error).message}`);
+    }
   };
 
   const handleDelete = async () => {
     if (!submission) return;
     if (!window.confirm('¿Estás seguro de que deseas eliminar tu entrega?')) return;
-    await platformService.deleteSubmission(submission.id);
+    await submissionsService.remove(submission.id);
     setSubmission(null);
   };
 
@@ -67,6 +81,7 @@ export function SubmissionPage() {
         ) : submission ? (
           <SubmissionCard
             submission={submission}
+            onView={handleView}
             onEdit={() => setModalMode('edit')}
             onDelete={handleDelete}
           />

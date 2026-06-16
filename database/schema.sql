@@ -35,8 +35,8 @@ CREATE INDEX idx_users_role ON users(role_id);
 CREATE TABLE submissions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  document_name VARCHAR(255) NOT NULL,
-  document_url  TEXT NOT NULL,                -- solo referencia; Storage real se agrega después
+  document_name VARCHAR(255) NOT NULL,           -- nombre original del archivo
+  document_path TEXT,                            -- clave del objeto en MinIO (bucket "documents")
   comment       TEXT NOT NULL DEFAULT '',
   status        VARCHAR(20) NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending', 'submitted', 'reviewed')),

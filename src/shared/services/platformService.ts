@@ -38,7 +38,7 @@ async function apiSend<T>(method: string, path: string, body?: unknown): Promise
 
 interface UserDTO { id: string; name: string; email: string; role: string }
 interface SubmissionDTO {
-  id: string; student_id: string; document_name: string; document_url: string;
+  id: string; student_id: string; document_name: string; document_path: string | null;
   comment: string; status: string; submitted_at: string;
   reviewed_at: string | null; grade: number | null; final_comment: string | null;
 }
@@ -169,18 +169,26 @@ export const platformService = {
     return data.map(mapSubmission);
   },
 
-  async createSubmission(studentId: string, documentName: string, comment: string): Promise<StudentSubmission> {
-    const data = await apiSend<SubmissionDTO>('POST', '/api/submissions', { studentId, documentName, comment });
+  async createSubmission(
+    studentId: string,
+    documentName: string,
+    comment: string,
+    documentPath: string | null = null,
+  ): Promise<StudentSubmission> {
+    const data = await apiSend<SubmissionDTO>('POST', '/api/submissions', {
+      studentId, documentName, comment, documentPath,
+    });
     return mapSubmission(data);
   },
 
   async updateSubmission(
     id: string,
-    patch: Partial<Pick<StudentSubmission, 'documentName' | 'comment'>>,
+    patch: { documentName?: string; comment?: string; documentPath?: string },
   ): Promise<StudentSubmission> {
     const data = await apiSend<SubmissionDTO>('PATCH', `/api/submissions/${id}`, {
       documentName: patch.documentName,
       comment: patch.comment,
+      documentPath: patch.documentPath,
     });
     return mapSubmission(data);
   },

@@ -1,23 +1,28 @@
 // ============================================================================
 // Plugin de Vite que expone un pequeño conjunto de rutas /api/* respaldadas
-// por PostgreSQL. Corre dentro del proceso Node del dev server de Vite — NO
-// es un proyecto backend separado ni un framework (Express/Nest); es solo el
-// punto donde el frontend (navegador) obtiene datos sin hablar TCP con la BD.
+// por PostgreSQL y MinIO. Corre dentro del proceso Node del dev server de Vite
+// — NO es un proyecto backend separado ni un framework (Express/Nest); es solo
+// el punto donde el frontend (navegador) obtiene datos y archivos sin hablar
+// TCP con la BD ni con el object storage.
 // ============================================================================
 
 import type { Plugin, Connect } from 'vite';
 import type { ServerResponse } from 'node:http';
+import busboy from 'busboy';
 
 import { listUsers, listUsersByRole, getUserById } from './queries/users';
 import {
   listSubmissions, getSubmissionByStudent, getSubmissionById,
-  createSubmission, updateSubmission, deleteSubmission,
+  createSubmission, updateSubmission, deleteSubmission, getDocumentPath,
 } from './queries/submissions';
 import {
   listAssignments, listAssignmentsByTeacher, createAssignment, deleteAssignment,
 } from './queries/assignments';
 import { getReviewBySubmission, getOrCreateReview, saveReview } from './queries/reviews';
 import type { SaveReviewInput } from './queries/reviews';
+import { uploadPdf, getPresignedUrl } from '../lib/minio';
+
+const MAX_BYTES = Number(process.env.UPLOAD_MAX_MB ?? 15) * 1024 * 1024;
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
@@ -35,6 +40,32 @@ function readJsonBody(req: Connect.IncomingMessage): Promise<Record<string, unkn
       try { resolve(JSON.parse(raw)); } catch (e) { reject(e); }
     });
     req.on('error', reject);
+  });
+}
+
+interface ParsedFile { buffer: Buffer; filename: string; mimeType: string }
+interface ParsedMultipart { fields: Record<string, string>; file: ParsedFile | null; tooLarge: boolean }
+
+/** Parsea un multipart/form-data con un único archivo (límite de tamaño aplicado). */
+function parseMultipart(req: Connect.IncomingMessage): Promise<ParsedMultipart> {
+  return new Promise((resolve, reject) => {
+    const bb = busboy({ headers: req.headers, limits: { files: 1, fileSize: MAX_BYTES } });
+    const fields: Record<string, string> = {};
+    let file: ParsedFile | null = null;
+    let tooLarge = false;
+
+    bb.on('field', (name, value) => { fields[name] = value; });
+    bb.on('file', (_name, stream, info) => {
+      const chunks: Buffer[] = [];
+      stream.on('data', (c: Buffer) => chunks.push(c));
+      stream.on('limit', () => { tooLarge = true; });
+      stream.on('end', () => {
+        file = { buffer: Buffer.concat(chunks), filename: info.filename, mimeType: info.mimeType };
+      });
+    });
+    bb.on('close', () => resolve({ fields, file, tooLarge }));
+    bb.on('error', reject);
+    req.pipe(bb);
   });
 }
 
@@ -58,6 +89,41 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
     return true;
   }
 
+  // ── Upload de documentos (multipart/form-data) ───────────────────────────
+  // POST /api/upload  campo "file" -> sube a MinIO y devuelve la referencia
+  if (path === '/api/upload' && method === 'POST') {
+    const { file, tooLarge } = await parseMultipart(req);
+    if (tooLarge) {
+      sendJson(res, 413, { error: `El archivo supera el límite de ${MAX_BYTES / 1024 / 1024} MB` });
+      return true;
+    }
+    if (!file) {
+      sendJson(res, 400, { error: 'No se recibió ningún archivo' });
+      return true;
+    }
+    const isPdf = file.mimeType === 'application/pdf' || file.filename.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      sendJson(res, 415, { error: 'Solo se permiten archivos PDF' });
+      return true;
+    }
+    const documentPath = await uploadPdf(file.buffer, file.filename);
+    sendJson(res, 201, { documentPath, documentName: file.filename, size: file.buffer.length });
+    return true;
+  }
+
+  // GET /api/documents/:id -> URL temporal firmada para visualizar el PDF
+  const docMatch = path.match(/^\/api\/documents\/([^/]+)$/);
+  if (docMatch && method === 'GET') {
+    const key = await getDocumentPath(docMatch[1]);
+    if (!key) {
+      sendJson(res, 404, { error: 'La entrega no tiene documento asociado' });
+      return true;
+    }
+    const signedUrl = await getPresignedUrl(key);
+    sendJson(res, 200, { url: signedUrl });
+    return true;
+  }
+
   // ── Submissions ────────────────────────────────────────────────────────
   if (path === '/api/submissions' && method === 'GET') {
     const studentId = url.searchParams.get('studentId');
@@ -69,7 +135,7 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
     const created = await createSubmission({
       studentId: String(b.studentId),
       documentName: String(b.documentName),
-      documentUrl: String(b.documentUrl ?? `/uploads/${b.documentName}`),
+      documentPath: (b.documentPath as string | undefined) ?? null,
       comment: String(b.comment ?? ''),
     });
     sendJson(res, 201, created);
@@ -86,6 +152,7 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
     const updated = await updateSubmission(subMatch[1], {
       documentName: b.documentName as string | undefined,
       comment: b.comment as string | undefined,
+      documentPath: b.documentPath as string | undefined,
     });
     sendJson(res, updated ? 200 : 404, updated ?? { error: 'Entrega no encontrada' });
     return true;
@@ -116,9 +183,6 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
   }
 
   // ── Reviews ──────────────────────────────────────────────────────────────
-  // GET  /api/reviews/:submissionId  -> leer (o null)
-  // POST /api/reviews                -> obtener o crear  { submissionId, evaluatorId }
-  // PUT  /api/reviews/:reviewId      -> guardar el árbol completo
   if (path === '/api/reviews' && method === 'POST') {
     const b = await readJsonBody(req);
     const review = await getOrCreateReview(String(b.submissionId), String(b.evaluatorId));

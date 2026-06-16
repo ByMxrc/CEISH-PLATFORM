@@ -36,11 +36,13 @@ INSERT INTO assignments (teacher_id, student_id) VALUES
 -- ----------------------------------------------------------------------------
 -- submissions  (Juan tiene una entrega en revisión)
 -- ----------------------------------------------------------------------------
-INSERT INTO submissions (id, student_id, document_name, document_url, comment, status, submitted_at) VALUES
+-- Nota: el document_path apunta a un objeto de ejemplo que no existe físicamente
+-- en MinIO. Para una visualización real, sube un PDF nuevo desde la interfaz.
+INSERT INTO submissions (id, student_id, document_name, document_path, comment, status, submitted_at) VALUES
   ('d0000000-0000-0000-0000-000000000001',
    'c0000000-0000-0000-0000-000000000001',
    'Proyecto_Final_Juan.pdf',
-   '/uploads/proyecto_final_juan.pdf',
+   'documents/seed-proyecto-final-juan.pdf',
    'Primera versión del proyecto de investigación.',
    'submitted',
    NOW() - INTERVAL '3 days');

@@ -2,7 +2,8 @@
 
 Plataforma institucional para la evaluación de documentos académicos en formato PDF. Soporta tres roles de usuario — **estudiante**, **evaluador** y **administrador** — cada uno con su propia interfaz.
 
-> Estado actual: frontend completo con datos mock en memoria. Backend en planificación (Node.js + PostgreSQL + Docker).
+> Estado actual: frontend en React conectado a PostgreSQL y a MinIO (almacenamiento
+> de PDF), todo orquestado por el dev server de Vite y levantado con Docker.
 
 ---
 
@@ -39,29 +40,51 @@ Plataforma institucional para la evaluación de documentos académicos en format
 | Renderizado PDF | react-pdf / PDF.js |
 | Estilos | CSS global con custom properties (sin Tailwind, sin CSS Modules) |
 | Base de datos | PostgreSQL 16 en Docker (volumen persistente) |
-| Acceso a datos | Cliente `pg` + rutas API en el dev server de Vite |
+| Object storage | MinIO en Docker (compatible S3, volumen persistente) |
+| Acceso a datos | Cliente `pg` + cliente MinIO + rutas API en el dev server de Vite |
 
 ---
 
 ## Arquitectura de datos
 
-El navegador no puede conectarse directamente a PostgreSQL (no permite sockets TCP).
-Por eso el acceso a datos pasa por una capa mínima dentro del **propio dev server
-de Vite** — sin un proyecto backend separado (sin NestJS/Express/API aparte):
+El navegador no puede conectarse directamente a PostgreSQL ni a MinIO (no permite
+sockets TCP crudos). Por eso el acceso a datos y archivos pasa por una capa mínima
+dentro del **propio dev server de Vite** — sin un proyecto backend separado
+(sin NestJS/Express/API aparte):
 
 ```
 React (navegador)
    src/services/*.ts        ── fetch ──►  rutas /api/* (plugin de Vite)
                                                │
-                                          src/lib/database.ts  (pool pg único)
-                                               │
-                                               ▼
-                                    PostgreSQL  (Docker + volumen)
+                          ┌────────────────────┼────────────────────┐
+                          ▼                     ▼                    
+                  src/lib/database.ts    src/lib/minio.ts            
+                   (pool pg único)       (cliente MinIO)             
+                          │                     │                    
+                          ▼                     ▼                    
+                   PostgreSQL            MinIO (bucket "documents")  
+                  (metadatos)            (archivos PDF)              
 ```
 
-- Los **componentes** llaman a `src/services/*` y nunca ejecutan SQL.
+- Los **componentes** llaman a `src/services/*` y nunca ejecutan SQL ni suben a MinIO.
 - El **SQL** vive en `src/server/queries/` (solo lado servidor).
-- La **conexión** está centralizada en `src/lib/database.ts` (un solo pool).
+- La **conexión** a la BD está centralizada en `src/lib/database.ts` (un solo pool).
+- Los **PDF no se guardan en PostgreSQL**: el archivo va a MinIO y la BD solo
+  almacena la referencia del objeto (`submissions.document_path`).
+
+### Flujo de subida de un documento
+
+```
+Estudiante selecciona PDF
+        ↓  multipart/form-data
+POST /api/upload  (valida tipo PDF y tamaño)
+        ↓
+Middleware sube el archivo a MinIO  → devuelve la clave del objeto
+        ↓
+Se crea la entrega en PostgreSQL con document_path
+        ↓
+Ver documento → GET /api/documents/:id → URL temporal firmada (5 min)
+```
 
 ---
 
@@ -71,15 +94,18 @@ React (navegador)
 database/
 ├── schema.sql                    # Definición de tablas, índices y constraints
 └── seed.sql                      # Datos de prueba
-docker-compose.yml                # Servicio PostgreSQL + volumen persistente
+docker-compose.yml                # PostgreSQL + MinIO + init del bucket + volúmenes
 src/
 ├── lib/
-│   └── database.ts               # Pool pg único (lado servidor)
+│   ├── database.ts               # Pool pg único (lado servidor)
+│   └── minio.ts                  # Cliente MinIO: bucket, subida y URLs firmadas
 ├── server/                       # Solo se ejecuta en el dev server de Vite (Node)
-│   ├── apiPlugin.ts              # Plugin de Vite que enruta /api/*
+│   ├── apiPlugin.ts              # Plugin de Vite que enruta /api/* (incl. /upload y /documents)
 │   └── queries/                  # SQL por dominio (users, submissions, ...)
 ├── services/                     # Lo que llaman los componentes (fetch, sin SQL)
 │   ├── http.ts
+│   ├── storage.ts                # Subida de PDF + URL de visualización (MinIO)
+│   ├── submissions.ts            # Orquesta documento (storage) + entrega (BD)
 │   ├── userService.ts
 │   ├── submissionService.ts
 │   ├── assignmentService.ts
@@ -141,19 +167,25 @@ npm install
 cp .env.example .env
 ```
 
-El `.env` ya trae valores listos para el demo. Por defecto el contenedor se publica
-en el host en el puerto **5433** (para no chocar con una instalación local de
-PostgreSQL que suele ocupar el 5432). Ajusta `DATABASE_PORT` si lo necesitas.
+El `.env` ya trae valores listos para el demo. Por defecto el contenedor de
+PostgreSQL se publica en el host en el puerto **5433** (para no chocar con una
+instalación local que suele ocupar el 5432). MinIO usa **9000** (API) y **9001**
+(consola web). Ajusta los puertos en `.env` si lo necesitas.
 
-### 3. Levantar la base de datos (Docker)
+### 3. Levantar la infraestructura (Docker)
 
 ```bash
 docker compose up -d
 ```
 
-La primera vez, PostgreSQL ejecuta automáticamente `database/schema.sql` y
-`database/seed.sql`, dejando las tablas creadas y con datos de prueba. El volumen
-`ceish_postgres_data` conserva los datos aunque ejecutes `docker compose down`.
+Esto levanta tres cosas:
+- **PostgreSQL** — la primera vez ejecuta `database/schema.sql` y `database/seed.sql`.
+- **MinIO** — object storage para los PDF (consola en http://localhost:9001,
+  usuario/clave `minioadmin` / `minioadmin`).
+- **minio-init** — contenedor efímero que crea el bucket `documents` y termina.
+
+Los volúmenes `ceish_postgres_data` y `ceish_minio_data` conservan los datos y
+archivos aunque ejecutes `docker compose down`.
 
 ### 4. Ejecutar el frontend
 
@@ -165,11 +197,12 @@ npm run dev
 ### Comandos
 
 ```bash
-npm run dev            # Servidor de desarrollo con HMR + rutas /api
+npm run dev            # Servidor de desarrollo con HMR + rutas API
 npm run build          # Type-check + build de producción
 npm run lint           # ESLint
-docker compose up -d   # Levantar PostgreSQL
-docker compose down    # Detener PostgreSQL (conserva el volumen)
+docker compose up -d   # Levantar PostgreSQL + MinIO
+docker compose down    # Detener servicios (conserva los volúmenes)
+docker compose down -v # Detener y borrar datos/archivos (reinicia el seed)
 ```
 
 ### Verificar que los datos llegan desde PostgreSQL
@@ -202,10 +235,10 @@ progreso) que incluye criterios evaluados y una anotación sobre el PDF.
 
 - [x] Base de datos PostgreSQL en Docker con schema y seed
 - [x] Capa de acceso a datos (pool `pg` + rutas API + servicios del frontend)
-- [ ] Migrar las pantallas para que consuman `src/services/` en vez del mock en memoria
-- [ ] Operaciones de escritura (crear/editar entregas y revisiones contra la BD)
+- [x] UI conectada a PostgreSQL (sin datos mock)
+- [x] Almacenamiento de PDF en MinIO (subida, validación y URLs firmadas)
 - [ ] Autenticación real con JWT
-- [ ] Almacenamiento de archivos PDF (Object Storage tipo MinIO/S3)
+- [ ] Visualización del PDF dentro del flujo de revisión del evaluador
 - [ ] Notificaciones de estado por correo
 - [ ] Panel de estadísticas para administrador
 
