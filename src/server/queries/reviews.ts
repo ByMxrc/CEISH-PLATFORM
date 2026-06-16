@@ -31,6 +31,7 @@ export interface StageRow {
 export interface ReviewRow {
   id: string;
   submission_id: string;
+  student_id: string;
   reviewer_id: string;
   reviewer_name: string;
   comment: string;
@@ -43,6 +44,7 @@ export interface ReviewRow {
 interface FlatReview {
   id: string;
   submission_id: string;
+  student_id: string;
   reviewer_id: string;
   reviewer_name: string;
   comment: string;
@@ -51,13 +53,49 @@ interface FlatReview {
   created_at: string;
 }
 
+// ── Plantilla de etapas y criterios (4 etapas fijas) ────────────────────────
+const STAGE_TEMPLATE: { name: string; criteria: string[] }[] = [
+  {
+    name: 'Estructura',
+    criteria: [
+      'El documento contiene una introducción clara',
+      'Los objetivos están claramente definidos',
+      'La hipótesis o pregunta de investigación está planteada',
+    ],
+  },
+  {
+    name: 'Metodología',
+    criteria: [
+      'La metodología es apropiada para el tipo de investigación',
+      'La población de estudio está correctamente definida',
+      'Los instrumentos de recolección están descritos',
+    ],
+  },
+  {
+    name: 'Resultados',
+    criteria: [
+      'Los resultados se presentan de forma clara y ordenada',
+      'El análisis estadístico es correcto y justificado',
+      'Las conclusiones responden a los objetivos planteados',
+    ],
+  },
+  {
+    name: 'Formato',
+    criteria: [
+      'Las referencias bibliográficas están en formato APA',
+      'El documento cumple con los criterios de extensión mínima',
+    ],
+  },
+];
+
 /** Devuelve la revisión de una entrega con todo el árbol anidado, o null. */
 export async function getReviewBySubmission(submissionId: string): Promise<ReviewRow | null> {
   const reviews = await query<FlatReview>(
-    `SELECT rv.id, rv.submission_id, rv.reviewer_id, u.name AS reviewer_name,
+    `SELECT rv.id, rv.submission_id, s.student_id, rv.reviewer_id, u.name AS reviewer_name,
             rv.comment, rv.grade, rv.status, rv.created_at
        FROM reviews rv
        JOIN users u ON u.id = rv.reviewer_id
+       JOIN submissions s ON s.id = rv.submission_id
       WHERE rv.submission_id = $1`,
     [submissionId],
   );
@@ -119,4 +157,112 @@ export async function getReviewBySubmission(submissionId: string): Promise<Revie
         })),
     })),
   };
+}
+
+/** Devuelve la revisión existente de una entrega o crea una nueva con sus 4 etapas. */
+export async function getOrCreateReview(
+  submissionId: string,
+  evaluatorId: string,
+): Promise<ReviewRow> {
+  const existing = await getReviewBySubmission(submissionId);
+  if (existing) return existing;
+
+  // Crear la revisión
+  const inserted = await query<{ id: string }>(
+    `INSERT INTO reviews (submission_id, reviewer_id, status)
+     VALUES ($1, $2, 'in-progress')
+     RETURNING id`,
+    [submissionId, evaluatorId],
+  );
+  const reviewId = inserted[0].id;
+
+  // Crear etapas y criterios desde la plantilla
+  for (let i = 0; i < STAGE_TEMPLATE.length; i++) {
+    const stageNumber = i + 1;
+    const stageStatus = i === 0 ? 'in-progress' : 'pending';
+    const stage = await query<{ id: string }>(
+      `INSERT INTO review_stages (review_id, stage_number, status)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [reviewId, stageNumber, stageStatus],
+    );
+    const stageId = stage[0].id;
+    for (const criterion of STAGE_TEMPLATE[i].criteria) {
+      await query(
+        `INSERT INTO criteria_evaluations (stage_id, criterion, status)
+         VALUES ($1, $2, 'pending')`,
+        [stageId, criterion],
+      );
+    }
+  }
+
+  // Al abrir la revisión, la entrega pasa a "en revisión" (submitted)
+  await query(
+    `UPDATE submissions SET status = 'submitted' WHERE id = $1 AND status = 'pending'`,
+    [submissionId],
+  );
+
+  return (await getReviewBySubmission(submissionId))!;
+}
+
+// ── Persistencia de una revisión completa ───────────────────────────────────
+export interface SaveCriterionInput {
+  id: string;
+  status: string;
+  comment: string;
+  pageReference: number | null;
+}
+export interface SaveStageInput {
+  stageNumber: number;
+  status: string;
+  completedAt: string | null;
+  criteria: SaveCriterionInput[];
+}
+export interface SaveReviewInput {
+  reviewId: string;
+  submissionId: string;
+  status: string;
+  comment: string;
+  grade: number | null;
+  stages: SaveStageInput[];
+}
+
+export async function saveReview(input: SaveReviewInput): Promise<void> {
+  await query(
+    `UPDATE reviews SET comment = $2, grade = $3, status = $4 WHERE id = $1`,
+    [input.reviewId, input.comment, input.grade, input.status],
+  );
+
+  for (const stage of input.stages) {
+    await query(
+      `UPDATE review_stages SET status = $3, completed_at = $4
+        WHERE review_id = $1 AND stage_number = $2`,
+      [input.reviewId, stage.stageNumber, stage.status, stage.completedAt],
+    );
+    for (const c of stage.criteria) {
+      await query(
+        `UPDATE criteria_evaluations SET status = $2, comment = $3 WHERE id = $1`,
+        [c.id, c.status, c.comment],
+      );
+      // La referencia de página se guarda como una anotación simple (sin coordenadas)
+      await query(`DELETE FROM annotations WHERE criteria_evaluation_id = $1`, [c.id]);
+      if (c.pageReference != null) {
+        await query(
+          `INSERT INTO annotations (criteria_evaluation_id, page_number, x, y, width, height, comment)
+           VALUES ($1, $2, 0, 0, 0, 0, '')`,
+          [c.id, c.pageReference],
+        );
+      }
+    }
+  }
+
+  // Al completar la revisión, sincronizar la entrega
+  if (input.status === 'completed') {
+    await query(
+      `UPDATE submissions
+          SET status = 'reviewed', reviewed_at = NOW(), grade = $2, final_comment = $3
+        WHERE id = $1`,
+      [input.submissionId, input.grade, input.comment],
+    );
+  }
 }

@@ -42,7 +42,8 @@ CREATE TABLE submissions (
                   CHECK (status IN ('pending', 'submitted', 'reviewed')),
   submitted_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at   TIMESTAMPTZ,
-  grade         NUMERIC(4,2) CHECK (grade >= 0 AND grade <= 10)
+  grade         NUMERIC(4,2) CHECK (grade >= 0 AND grade <= 10),
+  final_comment TEXT                                 -- retroalimentación anónima para el estudiante
 );
 
 CREATE INDEX idx_submissions_student ON submissions(student_id);

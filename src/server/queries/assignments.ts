@@ -27,3 +27,19 @@ export async function listAssignmentsByTeacher(teacherId: string): Promise<Assig
     [teacherId],
   );
 }
+
+export async function createAssignment(teacherId: string, studentId: string): Promise<AssignmentRow> {
+  const rows = await query<{ id: string }>(
+    `INSERT INTO assignments (teacher_id, student_id)
+     VALUES ($1, $2)
+     ON CONFLICT (teacher_id, student_id) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
+     RETURNING id`,
+    [teacherId, studentId],
+  );
+  const result = await query<AssignmentRow>(`${BASE_SELECT} WHERE a.id = $1`, [rows[0].id]);
+  return result[0];
+}
+
+export async function deleteAssignment(id: string): Promise<void> {
+  await query(`DELETE FROM assignments WHERE id = $1`, [id]);
+}
