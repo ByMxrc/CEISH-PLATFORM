@@ -83,7 +83,10 @@ Middleware sube el archivo a MinIO  → devuelve la clave del objeto
         ↓
 Se crea la entrega en PostgreSQL con document_path
         ↓
-Ver documento → GET /api/documents/:id → URL temporal firmada (5 min)
+Ver documento (estudiante) → GET /api/documents/:id → URL temporal firmada (5 min)
+        ↓
+Revisar (evaluador) → GET /api/documents/:id/raw → el PDF se transmite por el
+        mismo origen y se carga automáticamente en el visor de la revisión
 ```
 
 ---
@@ -237,8 +240,8 @@ progreso) que incluye criterios evaluados y una anotación sobre el PDF.
 - [x] Capa de acceso a datos (pool `pg` + rutas API + servicios del frontend)
 - [x] UI conectada a PostgreSQL (sin datos mock)
 - [x] Almacenamiento de PDF en MinIO (subida, validación y URLs firmadas)
+- [x] Visualización del PDF del estudiante dentro de la revisión del evaluador
 - [ ] Autenticación real con JWT
-- [ ] Visualización del PDF dentro del flujo de revisión del evaluador
 - [ ] Notificaciones de estado por correo
 - [ ] Panel de estadísticas para administrador
 
