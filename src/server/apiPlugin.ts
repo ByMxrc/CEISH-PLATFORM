@@ -20,7 +20,7 @@ import {
 } from './queries/assignments';
 import { getReviewBySubmission, getOrCreateReview, saveReview } from './queries/reviews';
 import type { SaveReviewInput } from './queries/reviews';
-import { uploadPdf, getPresignedUrl } from '../lib/minio';
+import { uploadPdf, getPresignedUrl, getObjectStream } from '../lib/minio';
 
 const MAX_BYTES = Number(process.env.UPLOAD_MAX_MB ?? 15) * 1024 * 1024;
 
@@ -108,6 +108,27 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
     }
     const documentPath = await uploadPdf(file.buffer, file.filename);
     sendJson(res, 201, { documentPath, documentName: file.filename, size: file.buffer.length });
+    return true;
+  }
+
+  // GET /api/documents/:id/raw -> transmite el PDF (mismo origen, para incrustarlo)
+  const docRawMatch = path.match(/^\/api\/documents\/([^/]+)\/raw$/);
+  if (docRawMatch && method === 'GET') {
+    const key = await getDocumentPath(docRawMatch[1]);
+    if (!key) {
+      sendJson(res, 404, { error: 'La entrega no tiene documento asociado' });
+      return true;
+    }
+    try {
+      const stream = await getObjectStream(key);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+      stream.on('error', () => { res.destroy(); });
+      stream.pipe(res);
+    } catch {
+      sendJson(res, 404, { error: 'El documento no existe en el almacenamiento' });
+    }
     return true;
   }
 

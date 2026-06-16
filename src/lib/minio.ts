@@ -58,3 +58,9 @@ export async function getPresignedUrl(key: string, expirySeconds = 300): Promise
   await ensureBucket();
   return getMinio().presignedGetObject(BUCKET, key, expirySeconds);
 }
+
+/** Devuelve un stream de lectura del objeto (para transmitirlo al navegador). */
+export async function getObjectStream(key: string): Promise<NodeJS.ReadableStream> {
+  await ensureBucket();
+  return getMinio().getObject(BUCKET, key);
+}

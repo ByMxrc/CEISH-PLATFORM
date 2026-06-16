@@ -6,6 +6,7 @@ import { PDFViewer } from '../../../features/evaluation/components/PDFViewer/PDF
 import { CriteriaPanel } from '../../../features/evaluation/components/CriteriaPanel/CriteriaPanel';
 import { StageNav } from './StageNav';
 import { platformService } from '../../../shared/services/platformService';
+import { storageService } from '../../../services/storage';
 import type { StudentSubmission } from '../../../shared/types/platform.types';
 import type { EvaluationSession } from '../../../features/evaluation/types/evaluation.types';
 import { useAuthStore } from '../../../store/authStore';
@@ -96,6 +97,7 @@ export function ReviewPage() {
   } = useReview(submissionId);
 
   const pdf = usePDFViewer();
+  const { loadFile } = pdf;
 
   useEffect(() => {
     platformService.getAllSubmissions().then((subs) => {
@@ -104,6 +106,11 @@ export function ReviewPage() {
     // Clear previous review on unmount
     return () => { useReviewStore.getState().setReview(null); };
   }, [submissionId]);
+
+  // Cargar automáticamente el documento subido por el estudiante (desde MinIO)
+  useEffect(() => {
+    if (submissionId) loadFile(storageService.getRawUrl(submissionId));
+  }, [submissionId, loadFile]);
 
   if (!review || !currentStage || !stageStats) {
     return (

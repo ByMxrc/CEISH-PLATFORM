@@ -41,4 +41,9 @@ export const storageService = {
     const data = (await res.json()) as { url: string };
     return data.url;
   },
+
+  /** Ruta (mismo origen) que transmite el PDF; apta para incrustar en el visor. */
+  getRawUrl(submissionId: string): string {
+    return `/api/documents/${submissionId}/raw`;
+  },
 };
