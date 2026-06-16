@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ceish_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-ceish_db}
+      POSTGRES_USER: ${DATABASE_USER:-ceish_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-ceish_pass}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Scripts de inicialización: se ejecutan en orden alfabético
+      # SOLO la primera vez que se crea el volumen (BD vacía).
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-ceish_user} -d ${DATABASE_NAME:-ceish_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: ceish_postgres_data
