@@ -4,7 +4,7 @@ import type { CriterionStatus } from '../features/evaluation/types/evaluation.ty
 
 interface ReviewState {
   review: Review | null;
-  setReview: (review: Review) => void;
+  setReview: (review: Review | null) => void;
   advanceStage: () => void;
   completeReview: (finalComment: string, grade: number) => void;
   updateStageCriterionStatus: (stageIdx: number, criterionId: string, status: CriterionStatus) => void;

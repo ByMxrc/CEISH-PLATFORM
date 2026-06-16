@@ -102,7 +102,7 @@ export function ReviewPage() {
       setSubmission(subs.find((s) => s.id === submissionId) ?? null);
     });
     // Clear previous review on unmount
-    return () => { useReviewStore.getState().setReview(null as unknown as ReturnType<typeof useReviewStore.getState>['review'] extends infer R ? R : never); };
+    return () => { useReviewStore.getState().setReview(null); };
   }, [submissionId]);
 
   if (!review || !currentStage || !stageStats) {
