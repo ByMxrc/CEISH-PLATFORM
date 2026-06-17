@@ -19,6 +19,7 @@ import {
   listAssignments, listAssignmentsByTeacher, createAssignment, deleteAssignment,
 } from './queries/assignments';
 import { getReviewBySubmission, getOrCreateReview, saveReview } from './queries/reviews';
+import { loginUser } from './queries/auth';
 import type { SaveReviewInput } from './queries/reviews';
 import { uploadPdf, getPresignedUrl, getObjectStream } from '../lib/minio';
 
@@ -75,6 +76,22 @@ async function handle(req: Connect.IncomingMessage, res: ServerResponse): Promis
   const path = url.pathname;
   const method = (req.method ?? 'GET').toUpperCase();
   if (!path.startsWith('/api/')) return false;
+
+  // ── Auth ───────────────────────────────────────────────────────────────
+  if (path === '/api/auth/login' && method === 'POST') {
+    const b = await readJsonBody(req);
+    if (!b.email || !b.password) {
+      sendJson(res, 400, { error: 'Email y contraseña son requeridos' });
+      return true;
+    }
+    const user = await loginUser(String(b.email), String(b.password));
+    if (!user) {
+      sendJson(res, 401, { error: 'Credenciales incorrectas' });
+      return true;
+    }
+    sendJson(res, 200, { user });
+    return true;
+  }
 
   // ── Users ──────────────────────────────────────────────────────────────
   if (path === '/api/users' && method === 'GET') {
