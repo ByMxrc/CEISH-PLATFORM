@@ -1,93 +1,27 @@
-# Arquitectura Propuesta
+# Arquitectura Propuesta CEISH
 
+## Stack tecnológico
 
-## Backend
+| Capa           | Tecnología        | Versión  |
+|----------------|-------------------|----------|
+| Frontend       | React             | 18+      |
+| Backend        | NestJS            | 10+      |
+| ORM            | Prisma            | 5.22     |
+| Base de datos  | PostgreSQL        | 15       |
+| Archivos       | MinIO             | latest   |
+| Infraestructura| Docker Compose    | 3.9      |
 
-Framework:
+## Servicios Docker
 
-NestJS
+| Servicio    | Puerto host | Puerto container | Descripción                    |
+|-------------|-------------|------------------|--------------------------------|
+| PostgreSQL  | 5433        | 5432             | Base de datos principal        |
+| MinIO API   | 9000        | 9000             | Almacenamiento de archivos S3  |
+| MinIO UI    | 9001        | 9001             | Consola web MinIO              |
+| PgAdmin     | 5050        | 80               | Gestión visual DB (solo dev)   |
 
+> Nota: PostgreSQL usa el puerto 5433 en el host para evitar conflictos con instalaciones locales de PostgreSQL.
 
-Responsabilidades:
+## Modelo de datos
 
-- lógica de negocio.
-- permisos.
-- flujo de estados.
-- validaciones.
-
-
----
-
-## Frontend
-
-React
-
-
-Responsabilidades:
-
-- interfaces.
-- formularios.
-- dashboards.
-
-
----
-
-## Base de Datos
-
-PostgreSQL
-
-
-ORM:
-
-Prisma
-
-
----
-
-## Archivos
-
-MinIO / S3 compatible
-
-
-Uso:
-
-- PDFs.
-- anexos.
-- documentos.
-
-
----
-
-## Infraestructura
-
-
-Docker Compose:
-
-
-Servicios:
-
-
-frontend
-
-backend
-
-postgres
-
-minio
-
-
----
-
-# Principio arquitectónico
-
-
-El sistema debe estar orientado a procesos.
-
-
-Las pantallas deben construirse alrededor del estado de una investigación.
-
-
-La lógica no debe estar en frontend.
-
-
-Las reglas deben vivir en backend.
+Ver `database/README.md` para la documentación completa del modelo.

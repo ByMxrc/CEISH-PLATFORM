@@ -1,0 +1,107 @@
+version: "3.9"
+
+# ============================================================
+# CEISH Platform - Infraestructura de desarrollo
+# ============================================================
+#
+# Servicios:
+#   - postgres   : Base de datos principal (PostgreSQL 15)
+#   - minio      : Almacenamiento de archivos (compatible S3)
+#   - pgadmin    : Interfaz web para PostgreSQL (solo desarrollo)
+#
+# Uso:
+#   docker-compose up -d
+#   docker-compose down
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # PostgreSQL 15
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: ceish_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ceish_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ceish_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceish_secret_2024}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ceish_user} -d ${POSTGRES_DB:-ceish_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ceish_network
+
+  # ----------------------------------------------------------
+  # MinIO - Object Storage (compatible S3)
+  # ----------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: ceish_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ceish_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ceish_minio_secret_2024}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"   # API S3
+      - "9001:9001"                  # Consola web
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - ceish_network
+
+  # ----------------------------------------------------------
+  # PgAdmin 4 - Interfaz web para PostgreSQL (solo desarrollo)
+  # ----------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ceish_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ceish.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_ceish_2024}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ceish_network
+
+# ============================================================
+# Volúmenes persistentes
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ============================================================
+# Red interna
+# ============================================================
+networks:
+  ceish_network:
+    driver: bridge
+    name: ceish_network
