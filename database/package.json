@@ -1,0 +1,32 @@
+{
+  "name": "ceish-database",
+  "version": "1.0.0",
+  "description": "Capa de datos CEISH - Prisma ORM + PostgreSQL",
+  "scripts": {
+    "db:up": "docker-compose -f ../docker-compose.yml up -d",
+    "db:down": "docker-compose -f ../docker-compose.yml down",
+    "db:reset": "docker-compose -f ../docker-compose.yml down -v",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:validate": "prisma validate",
+    "prisma:format": "prisma format"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.9.0",
+    "dotenv-cli": "^11.0.0",
+    "pg": "^8.22.0",
+    "prisma": "5.22.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.6.3"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}
