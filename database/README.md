@@ -47,10 +47,9 @@ docker-compose up -d
 Servicios disponibles:
 | Servicio   | URL / Puerto            |
 |------------|-------------------------|
-| PostgreSQL | `localhost:5432`        |
+| PostgreSQL | `localhost:5433`        |
 | MinIO API  | `http://localhost:9000` |
 | MinIO UI   | `http://localhost:9001` |
-| PgAdmin    | `http://localhost:5050` |
 
 ### 3. Instalar dependencias
 
@@ -195,7 +194,21 @@ CREATED
 |------------|-----------------------|----------------------|
 | PostgreSQL | `ceish_user`          | `ceish_secret_2024`  |
 | MinIO      | `ceish_minio`         | `ceish_minio_secret_2024` |
-| PgAdmin    | `admin@ceish.local`   | `admin_ceish_2024`   |
 | App Admin  | `admin@ceish.local`   | `Admin@CEISH2024`    |
 
 > ⚠️ Cambiar todas las contraseñas antes de desplegar en producción.
+
+---
+
+## Herramientas de gestión
+
+**Prisma Studio** (recomendado):
+```bash
+npm run prisma:studio
+# Abre http://localhost:5555
+```
+
+**psql directo**:
+```bash
+docker exec -it ceish_postgres psql -U ceish_user -d ceish_db
+```

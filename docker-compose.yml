@@ -7,7 +7,6 @@ version: "3.9"
 # Servicios:
 #   - postgres   : Base de datos principal (PostgreSQL 15)
 #   - minio      : Almacenamiento de archivos (compatible S3)
-#   - pgadmin    : Interfaz web para PostgreSQL (solo desarrollo)
 #
 # Uso:
 #   docker-compose up -d
@@ -66,26 +65,7 @@ services:
     networks:
       - ceish_network
 
-  # ----------------------------------------------------------
-  # PgAdmin 4 - Interfaz web para PostgreSQL (solo desarrollo)
-  # ----------------------------------------------------------
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ceish_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ceish.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_ceish_2024}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - ceish_network
+
 
 # ============================================================
 # Volúmenes persistentes
@@ -94,8 +74,6 @@ volumes:
   postgres_data:
     driver: local
   minio_data:
-    driver: local
-  pgadmin_data:
     driver: local
 
 # ============================================================

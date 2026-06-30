@@ -18,7 +18,6 @@
 | PostgreSQL  | 5433        | 5432             | Base de datos principal        |
 | MinIO API   | 9000        | 9000             | Almacenamiento de archivos S3  |
 | MinIO UI    | 9001        | 9001             | Consola web MinIO              |
-| PgAdmin     | 5050        | 80               | Gestión visual DB (solo dev)   |
 
 > Nota: PostgreSQL usa el puerto 5433 en el host para evitar conflictos con instalaciones locales de PostgreSQL.
 
