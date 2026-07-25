@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const UserType = { INVESTIGATOR: 'INVESTIGATOR', CEISH_MEMBER: 'CEISH_MEMBER', ADMIN: 'ADMIN' } as const;
 const InvestigatorType = { INTERNAL: 'INTERNAL', EXTERNAL: 'EXTERNAL' } as const;

@@ -12,7 +12,8 @@ export class GetInvestigationParticipantsUseCase {
     if (actorType === UserType.INVESTIGATOR && investigation.createdById !== actorId) {
       throw new ForbiddenException('You cannot access this investigation');
     }
-    if (![UserType.INVESTIGATOR, UserType.ADMIN].includes(actorType)) {
+    const allowedRoles: UserType[] = [UserType.INVESTIGATOR, UserType.ADMIN];
+    if (!allowedRoles.includes(actorType)) {
       throw new ForbiddenException('You cannot access this investigation');
     }
     return this.investigationRepository.findParticipants(investigationId);

@@ -21,16 +21,17 @@ export class WorkflowEventInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      tap(async (responseBody) => {
-        if (!responseBody || !user) {
+      tap(async (responseBody: unknown) => {
+        if (!responseBody || typeof responseBody !== 'object' || !user) {
           return;
         }
 
-        const entityId = this.extractEntityId(responseBody);
+        const body = responseBody as Record<string, unknown>;
+        const entityId = this.extractEntityId(body);
         const entityType = this.inferEntityType(url);
-        const previousStatus = this.extractPreviousStatus(responseBody);
-        const newStatus = this.extractNewStatus(responseBody);
-        const investigationId = this.extractInvestigationId(responseBody);
+        const previousStatus = this.extractPreviousStatus(body);
+        const newStatus = this.extractNewStatus(body);
+        const investigationId = this.extractInvestigationId(body);
 
         if (entityType && entityId) {
           await this.prisma.workflowEvent.create({
@@ -52,7 +53,7 @@ export class WorkflowEventInterceptor implements NestInterceptor {
   }
 
   private extractEntityId(body: Record<string, unknown>): string | null {
-    return (body.id as string) ?? (body.data?.id as string) ?? null;
+    return (body.id as string) ?? (this.getData(body).id as string) ?? null;
   }
 
   private inferEntityType(url: string): string | null {
@@ -68,19 +69,24 @@ export class WorkflowEventInterceptor implements NestInterceptor {
   }
 
   private extractPreviousStatus(body: Record<string, unknown>): string | null {
-    return (body.previousStatus as string) ?? (body.data?.previousStatus as string) ?? null;
+    return (body.previousStatus as string) ?? (this.getData(body).previousStatus as string) ?? null;
   }
 
   private extractNewStatus(body: Record<string, unknown>): string | null {
-    return (body.status as string) ?? (body.data?.status as string) ?? null;
+    return (body.status as string) ?? (this.getData(body).status as string) ?? null;
   }
 
   private extractInvestigationId(body: Record<string, unknown>): string | null {
     return (
       (body.investigationId as string) ??
-      (body.data?.investigationId as string) ??
-      (body.data?.investigation_id as string) ??
+      (this.getData(body).investigationId as string) ??
+      (this.getData(body).investigation_id as string) ??
       null
     );
+  }
+
+  private getData(body: Record<string, unknown>): Record<string, unknown> {
+    const data = body.data;
+    return data && typeof data === 'object' ? data as Record<string, unknown> : {};
   }
 }
