@@ -1,0 +1,1 @@
+export { EvaluationProcessEntity } from './entities';

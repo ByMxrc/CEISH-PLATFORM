@@ -1,0 +1,1 @@
+export { UploadDocumentDto } from './dtos';

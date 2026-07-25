@@ -1,0 +1,1 @@
+export { ConflictDeclarationEntity } from './entities';

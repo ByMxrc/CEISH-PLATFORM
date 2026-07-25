@@ -1,0 +1,1 @@
+export { EvaluationAssignmentEntity } from './entities';
