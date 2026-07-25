@@ -1,23 +1,4 @@
-version: "3.9"
-
-# ============================================================
-# CEISH Platform - Infraestructura de desarrollo
-# ============================================================
-#
-# Servicios:
-#   - postgres   : Base de datos principal (PostgreSQL 15)
-#   - minio      : Almacenamiento de archivos (compatible S3)
-#
-# Uso:
-#   docker-compose up -d
-#   docker-compose down
-# ============================================================
-
 services:
-
-  # ----------------------------------------------------------
-  # PostgreSQL 15
-  # ----------------------------------------------------------
   postgres:
     image: postgres:15-alpine
     container_name: ceish_postgres
@@ -31,19 +12,14 @@ services:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ceish_user} -d ${POSTGRES_DB:-ceish_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    networks:
-      - ceish_network
+    networks: [ceish_network]
 
-  # ----------------------------------------------------------
-  # MinIO - Object Storage (compatible S3)
-  # ----------------------------------------------------------
   minio:
     image: minio/minio:latest
     container_name: ceish_minio
@@ -53,8 +29,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ceish_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ceish_minio_secret_2024}
     ports:
-      - "${MINIO_PORT:-9000}:9000"   # API S3
-      - "9001:9001"                  # Consola web
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -62,23 +38,71 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-    networks:
-      - ceish_network
+    networks: [ceish_network]
 
+  db-init:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: sh -c "npm run prisma:migrate:deploy && npm run prisma:seed"
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ceish_user}:${POSTGRES_PASSWORD:-ceish_secret_2024}@postgres:5432/${POSTGRES_DB:-ceish_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [ceish_network]
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ceish_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ceish_user}:${POSTGRES_PASSWORD:-ceish_secret_2024}@postgres:5432/${POSTGRES_DB:-ceish_db}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET debe estar definido en .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET debe estar definido en .env}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-ceish_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ceish_minio_secret_2024}
+      MINIO_BUCKET: ${MINIO_BUCKET:-ceish-documents}
+      MINIO_USE_SSL: "false"
+      APP_PORT: 3000
+      APP_HOST: 0.0.0.0
+      CORS_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3001}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    networks: [ceish_network]
 
-# ============================================================
-# Volúmenes persistentes
-# ============================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: ceish_frontend
+    restart: unless-stopped
+    environment:
+      BACKEND_API_URL: http://backend:3000/api/v1
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    ports:
+      - "${FRONTEND_PORT:-3001}:3001"
+    depends_on:
+      backend:
+        condition: service_started
+    networks: [ceish_network]
+
 volumes:
   postgres_data:
-    driver: local
   minio_data:
-    driver: local
 
-# ============================================================
-# Red interna
-# ============================================================
 networks:
   ceish_network:
     driver: bridge

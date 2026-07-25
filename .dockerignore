@@ -1,0 +1,10 @@
+.git
+.agents
+.ai
+.claude
+**/node_modules
+**/dist
+**/.next
+.env
+coverage
+*.log
