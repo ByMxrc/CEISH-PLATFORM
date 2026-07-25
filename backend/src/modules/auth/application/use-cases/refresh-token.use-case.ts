@@ -31,9 +31,9 @@ export class RefreshTokenUseCase {
     }
 
     const user = await this.userRepository.findById(payload.sub);
-    if (!user) throw new UnauthorizedException('User no longer exists');
+    if (!user) throw new UnauthorizedException('La cuenta ya no existe');
     if (user.accountStatus !== UserAccountStatus.ACTIVE) {
-      throw new ForbiddenException('Your account is not active');
+      throw new ForbiddenException(this.getInactiveAccountMessage(user.accountStatus));
     }
 
     const accessToken = await this.jwtService.signAsync(
@@ -55,5 +55,18 @@ export class RefreshTokenUseCase {
     const value = process.env[name];
     if (!value) throw new Error(`${name} must be configured`);
     return value;
+  }
+
+  private getInactiveAccountMessage(status: UserAccountStatus): string {
+    switch (status) {
+      case UserAccountStatus.PENDING_APPROVAL:
+        return 'Tu solicitud de cuenta está pendiente de aprobación por un administrador';
+      case UserAccountStatus.REJECTED:
+        return 'Tu solicitud de cuenta fue rechazada. Contacta al administrador para más información';
+      case UserAccountStatus.SUSPENDED:
+        return 'Tu cuenta está inactiva. Contacta al administrador';
+      default:
+        return 'Tu cuenta no está activa';
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@common/decorators';
@@ -34,13 +34,15 @@ export class AuthController {
   }
 
   @Post('login')
-  @ApiResponse({ status: 201, description: 'Authenticated successfully' })
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Authenticated successfully' })
   async login(@Body() data: LoginDto, @Req() request: { url: string }) {
     return this.response(await this.loginUseCase.execute(data), request.url);
   }
 
   @Post('refresh')
-  @ApiResponse({ status: 201, description: 'Tokens refreshed successfully' })
+  @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
   async refresh(@Body() data: RefreshTokenDto, @Req() request: { url: string }) {
     return this.response(await this.refreshTokenUseCase.execute(data), request.url);
   }

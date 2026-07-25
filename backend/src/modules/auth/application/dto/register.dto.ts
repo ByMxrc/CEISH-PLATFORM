@@ -1,5 +1,5 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { InvestigatorType, UserType } from '@common/enums';
+import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import { InvestigatorType } from '@common/enums';
 
 export class RegisterDto {
   @IsString()
@@ -13,10 +13,6 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
-  @IsEnum(UserType)
-  userType: UserType;
-
-  @IsOptional()
   @IsEnum(InvestigatorType)
-  investigatorType?: InvestigatorType;
+  investigatorType: InvestigatorType;
 }

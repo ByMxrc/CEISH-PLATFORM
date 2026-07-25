@@ -18,11 +18,11 @@ export class LoginUseCase {
     const user = await this.userRepository.findByEmail(data.email.trim().toLowerCase());
 
     if (!user || !(await this.authDomainService.comparePassword(data.password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Correo o contraseña incorrectos');
     }
 
     if (user.accountStatus !== UserAccountStatus.ACTIVE) {
-      throw new ForbiddenException('Your account is not active');
+      throw new ForbiddenException(this.getInactiveAccountMessage(user.accountStatus));
     }
 
     return this.createTokenResponse(user);
@@ -48,5 +48,18 @@ export class LoginUseCase {
     const value = process.env[name];
     if (!value) throw new Error(`${name} must be configured`);
     return value;
+  }
+
+  private getInactiveAccountMessage(status: UserAccountStatus): string {
+    switch (status) {
+      case UserAccountStatus.PENDING_APPROVAL:
+        return 'Tu solicitud de cuenta está pendiente de aprobación por un administrador';
+      case UserAccountStatus.REJECTED:
+        return 'Tu solicitud de cuenta fue rechazada. Contacta al administrador para más información';
+      case UserAccountStatus.SUSPENDED:
+        return 'Tu cuenta está inactiva. Contacta al administrador';
+      default:
+        return 'Tu cuenta no está activa';
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { CeishMemberType, InvestigatorType, UserAccountStatus, UserType } from '@common/enums';
+import { UserAccountStatus, UserType } from '@common/enums';
 import { PrismaService } from '@common/prisma';
 import { UserEntity } from '../../domain/entities/user.entity';
 import { AuthDomainService } from '../../domain/services/auth-domain.service';
@@ -28,28 +28,18 @@ export class RegisterUseCase {
           name: data.name.trim(),
           email,
           passwordHash,
-          userType: data.userType,
+          // El registro público está reservado exclusivamente a investigadores.
+          userType: UserType.INVESTIGATOR,
           accountStatus: UserAccountStatus.PENDING_APPROVAL,
         },
       });
 
-      if (data.userType === UserType.INVESTIGATOR) {
-        await tx.investigatorProfile.create({
-          data: {
-            userId: createdUser.id,
-            investigatorType: data.investigatorType ?? InvestigatorType.INTERNAL,
-          },
-        });
-      }
-
-      if (data.userType === UserType.CEISH_MEMBER) {
-        await tx.ceishMemberProfile.create({
-          data: {
-            userId: createdUser.id,
-            memberType: CeishMemberType.INTERNAL,
-          },
-        });
-      }
+      await tx.investigatorProfile.create({
+        data: {
+          userId: createdUser.id,
+          investigatorType: data.investigatorType,
+        },
+      });
 
       await tx.workflowEvent.create({
         data: {
