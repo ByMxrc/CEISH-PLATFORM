@@ -221,6 +221,8 @@ model InvestigatorProfile {
   id               String           @id @default(cuid())
   userId           String           @unique @map("user_id")
   investigatorType InvestigatorType @map("investigator_type")
+  identificationNumber String?       @unique @map("identification_number")
+  identificationVerifiedAt DateTime? @map("identification_verified_at")
   institution      String?          // institución a la que pertenece
   department       String?          // departamento/facultad
   phone            String?

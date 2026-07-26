@@ -11,7 +11,7 @@ export class RejectUserUseCase {
     private readonly prisma: PrismaService,
   ) {}
 
-  async execute(actorId: string, actorUserType: UserType, data: RejectUserDto): Promise<UserResponseDto> {
+  async execute(actorId: string, actorUserType: UserType, data: RejectUserDto & { userId: string }): Promise<UserResponseDto> {
     if (actorUserType !== UserType.ADMIN) throw new ForbiddenException('Only administrators can reject users');
 
     const user = await this.userRepository.findById(data.userId);

@@ -9,7 +9,7 @@ RUN npm ci
 COPY backend ./
 COPY database/prisma /app/database/prisma
 
-RUN npm run prisma:generate && npm run build
+RUN rm -f tsconfig.tsbuildinfo && npm run prisma:generate && npm run build
 
 FROM node:22-alpine AS runtime
 WORKDIR /app/backend

@@ -15,6 +15,8 @@ export class UserResponseDto {
   createdAt: Date;
   investigatorProfile?: {
     investigatorType: InvestigatorType;
+    identificationNumber: string | null;
+    identificationVerifiedAt: Date | null;
     institution: string | null;
     department: string | null;
     phone: string | null;
@@ -37,6 +39,8 @@ export class UserResponseDto {
       investigatorProfile: user.investigatorProfile
         ? {
             investigatorType: user.investigatorProfile.investigatorType,
+            identificationNumber: user.investigatorProfile.identificationNumber,
+            identificationVerifiedAt: user.investigatorProfile.identificationVerifiedAt,
             institution: user.investigatorProfile.institution,
             department: user.investigatorProfile.department,
             phone: user.investigatorProfile.phone,

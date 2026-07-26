@@ -9,6 +9,8 @@ export interface InvestigatorProfileEntity {
   id: string;
   userId: string;
   investigatorType: InvestigatorType;
+  identificationNumber: string | null;
+  identificationVerifiedAt: Date | null;
   institution: string | null;
   department: string | null;
   phone: string | null;

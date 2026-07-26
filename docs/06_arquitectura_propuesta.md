@@ -4,7 +4,7 @@
 
 | Capa           | Tecnología        | Versión  |
 |----------------|-------------------|----------|
-| Frontend       | React             | 18+      |
+| Frontend       | NextJS            | 18+      |
 | Backend        | NestJS            | 10+      |
 | ORM            | Prisma            | 5.22     |
 | Base de datos  | PostgreSQL        | 15       |

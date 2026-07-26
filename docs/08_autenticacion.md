@@ -11,11 +11,13 @@ Las rutas de autenticación están disponibles bajo el prefijo `/api/v1/auth`.
   "name": "Nombre del investigador",
   "email": "investigador@ejemplo.edu.ec",
   "password": "minimo-ocho-caracteres",
-  "investigatorType": "INTERNAL"
+  "identificationNumber": "0100000009",
+  "investigatorType": "INTERNAL",
+  "institution": "Universidad Ejemplo"
 }
 ```
 
-`investigatorType` es obligatorio y solo acepta `INTERNAL` o `EXTERNAL`. La API asigna siempre el tipo de usuario `INVESTIGATOR`, cifra la contraseña con bcrypt y crea la cuenta en `PENDING_APPROVAL`. Por ello, no es posible registrarse públicamente como miembro CEISH o administrador.
+`identificationNumber` es obligatorio y debe ser una cédula ecuatoriana válida; la API verifica sus dígitos y la guarda como única junto con la fecha de verificación. `investigatorType` es obligatorio y solo acepta `INTERNAL` o `EXTERNAL`. Para investigadores externos, `institution` también es obligatorio. La API asigna siempre el tipo de usuario `INVESTIGATOR`, cifra la contraseña con bcrypt y crea la cuenta en `PENDING_APPROVAL`. Por ello, no es posible registrarse públicamente como miembro CEISH o administrador.
 
 La solicitud crea además el perfil de investigador y un evento de auditoría `USER_REGISTERED`.
 

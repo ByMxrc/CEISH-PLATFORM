@@ -82,10 +82,10 @@ async function main() {
   }
 
   const investigators = [
-    ['investigator_1@ceish.local', 'Invest@CEISH2024', 'Universidad Nacional de Loja', InvestigatorType.INTERNAL],
-    ['investigator_2@ceish.local', 'Invest2@CEISH2024', 'Hospital Regional', InvestigatorType.EXTERNAL],
+    ['investigator_1@ceish.local', 'Invest@CEISH2024', 'Universidad Nacional de Loja', InvestigatorType.INTERNAL, '0100000009'],
+    ['investigator_2@ceish.local', 'Invest2@CEISH2024', 'Hospital Regional', InvestigatorType.EXTERNAL, '0900000001'],
   ] as const;
-  for (const [email, password, institution, investigatorType] of investigators) {
+  for (const [email, password, institution, investigatorType, identificationNumber] of investigators) {
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.upsert({
       where: { email },
@@ -94,8 +94,8 @@ async function main() {
     });
     await prisma.investigatorProfile.upsert({
       where: { userId: user.id },
-      update: { investigatorType: investigatorType as never, institution },
-      create: { userId: user.id, investigatorType: investigatorType as never, institution },
+      update: { investigatorType: investigatorType as never, institution, identificationNumber, identificationVerifiedAt: new Date() },
+      create: { userId: user.id, investigatorType: investigatorType as never, institution, identificationNumber, identificationVerifiedAt: new Date() },
     });
   }
 

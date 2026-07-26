@@ -7,6 +7,7 @@ import {
   RefreshTokenUseCase,
   RegisterUseCase,
 } from '../application/use-cases';
+import { EcuadorianIdentificationService } from '../domain/services/ecuadorian-identification.service';
 import { USER_REPOSITORY } from '../domain/repositories/user.repository.interface';
 import { AuthDomainService } from '../domain/services/auth-domain.service';
 import { AuthController } from './controllers';
@@ -27,6 +28,7 @@ import { UserPrismaRepository } from './repositories';
   providers: [
     AuthDomainService,
     RegisterUseCase,
+    EcuadorianIdentificationService,
     LoginUseCase,
     RefreshTokenUseCase,
     ChangePasswordUseCase,

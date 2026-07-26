@@ -11,7 +11,7 @@ export class SuspendUserUseCase {
     private readonly prisma: PrismaService,
   ) {}
 
-  async execute(actorId: string, actorUserType: UserType, data: SuspendUserDto): Promise<UserResponseDto> {
+  async execute(actorId: string, actorUserType: UserType, data: SuspendUserDto & { userId: string }): Promise<UserResponseDto> {
     if (actorUserType !== UserType.ADMIN) throw new ForbiddenException('Only administrators can suspend users');
 
     const user = await this.userRepository.findById(data.userId);

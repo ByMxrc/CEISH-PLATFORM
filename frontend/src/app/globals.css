@@ -22,6 +22,14 @@ button { cursor: pointer; }
 .notice { padding: 12px; border-radius: 8px; margin-top: 16px; line-height: 1.45; }
 .notice.error { color: #8a1c15; background: #fce9e7; }
 .notice.success { color: #075a36; background: #e5f6eb; }
+.registration-success { margin-top: 28px; padding: 34px 24px; text-align: center; border: 1px solid #c7ead5; border-radius: 12px; background: #f2fbf5; color: #075a36; }
+.registration-success h3 { margin: 16px 0 8px; font-size: 1.45rem; }
+.registration-success p { margin: 0 0 22px; line-height: 1.5; }
+.success-check { width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: #168348; animation: success-pop .38s ease-out both; }
+.success-check svg { width: 42px; height: 42px; fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; stroke-width: 5; }
+.success-check path { stroke-dasharray: 44; stroke-dashoffset: 44; animation: draw-check .42s .24s ease-out forwards; }
+@keyframes success-pop { from { opacity: 0; transform: scale(.55); } to { opacity: 1; transform: scale(1); } }
+@keyframes draw-check { to { stroke-dashoffset: 0; } }
 .app-shell { min-height: 100vh; }
 .topbar { color: white; background: #003c70; padding: 16px clamp(20px, 5vw, 80px); display: flex; justify-content: space-between; gap: 16px; align-items: center; }
 .topbar h1 { font-size: 1.2rem; margin: 0; }
