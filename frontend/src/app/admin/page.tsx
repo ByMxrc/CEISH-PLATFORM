@@ -1,2 +1,4 @@
 import { Dashboard } from '@/components/dashboard';
-export default function AdminPage() { return <Dashboard role="ADMIN" />; }
+import { requireRole } from '@/lib/access-control';
+
+export default async function AdminPage() { return <Dashboard role="ADMIN" user={await requireRole('ADMIN')} />; }

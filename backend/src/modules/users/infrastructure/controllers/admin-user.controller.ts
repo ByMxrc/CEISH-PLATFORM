@@ -13,7 +13,7 @@ import {
 } from '../../application/dto';
 import {
   ApproveUserUseCase,
-  GetUserUseCase,
+  GetAdminUserDetailUseCase,
   GetUsersUseCase,
   RejectUserUseCase,
   SuspendUserUseCase,
@@ -33,7 +33,7 @@ interface CurrentRequestUser {
 export class AdminUserController {
   constructor(
     private readonly getUsersUseCase: GetUsersUseCase,
-    private readonly getUserUseCase: GetUserUseCase,
+    private readonly getAdminUserDetailUseCase: GetAdminUserDetailUseCase,
     private readonly approveUserUseCase: ApproveUserUseCase,
     private readonly rejectUserUseCase: RejectUserUseCase,
     private readonly suspendUserUseCase: SuspendUserUseCase,
@@ -49,7 +49,7 @@ export class AdminUserController {
   @Get(':id')
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
   async getUser(@Param('id') id: string) {
-    return this.response(await this.getUserUseCase.execute(id));
+    return this.response(await this.getAdminUserDetailUseCase.execute(id));
   }
 
   @Post(':id/approve')

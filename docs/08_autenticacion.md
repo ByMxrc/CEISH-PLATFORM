@@ -34,3 +34,11 @@ Todas las rutas protegidas verifican el JWT y vuelven a consultar la cuenta. Est
 Los endpoints de administración bajo `/api/v1/admin/users` requieren JWT y el rol `ADMIN`. El administrador puede aprobar solicitudes pendientes (`POST /admin/users/:id/approve`), rechazarlas o suspender cuentas. La aprobación cambia el estado a `ACTIVE`; el rechazo y la suspensión quedan auditados mediante `workflow_events`.
 
 Los roles `CEISH_MEMBER` y `ADMIN` no disponen de registro público. Su creación o gestión corresponde a los mecanismos administrativos del sistema.
+
+## Panel administrativo y perfiles
+
+El panel de administración consume `GET /admin/users` con los filtros opcionales `search`, `accountStatus`, `userType`, `page` y `limit`. El detalle `GET /admin/users/:id` incluye el perfil correspondiente y el historial de decisiones de cuenta derivado de `workflow_events`; los motivos de rechazo o suspensión no se duplican en la tabla de usuarios.
+
+Las acciones de aprobar, rechazar y suspender están limitadas a cuentas en los estados permitidos y requieren el rol `ADMIN`. El rechazo y la suspensión exigen un motivo que queda en el evento de auditoría.
+
+Cada cuenta activa puede consultar `GET /users/me`. Los investigadores pueden actualizar sus datos editables mediante `PUT /users/me/profile`; los perfiles CEISH son administrados mediante los endpoints administrativos existentes.

@@ -1,2 +1,4 @@
 import { Dashboard } from '@/components/dashboard';
-export default function CeishPage() { return <Dashboard role="CEISH_MEMBER" />; }
+import { requireRole } from '@/lib/access-control';
+
+export default async function CeishPage() { return <Dashboard role="CEISH_MEMBER" user={await requireRole('CEISH_MEMBER')} />; }

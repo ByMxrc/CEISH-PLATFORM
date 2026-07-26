@@ -33,6 +33,7 @@ button { cursor: pointer; }
 .app-shell { min-height: 100vh; }
 .topbar { color: white; background: #003c70; padding: 16px clamp(20px, 5vw, 80px); display: flex; justify-content: space-between; gap: 16px; align-items: center; }
 .topbar h1 { font-size: 1.2rem; margin: 0; }
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
 .dashboard { max-width: 1120px; margin: 44px auto; padding: 0 24px; }
 .card { background: white; border: 1px solid #dce5ef; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(25, 50, 85, .06); margin-top: 20px; }
 .table-wrap { overflow-x: auto; }
@@ -41,4 +42,13 @@ th, td { border-bottom: 1px solid #e3eaf2; padding: 12px 8px; text-align: left; 
 th { color: #52627b; font-size: .84rem; text-transform: uppercase; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .actions .button { padding: 8px 11px; font-size: .9rem; }
-@media (max-width: 760px) { .auth-shell { grid-template-columns: 1fr; } .brand-panel { padding: 44px 28px; } .form-panel { padding-top: 36px; } }
+.filters { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(150px, .6fr)) auto; gap: 10px; margin: 18px 0; }
+.filters input, .filters select, .actions input { min-width: 0; border: 1px solid #c8d3e1; border-radius: 8px; padding: 10px; background: #fff; }
+.pagination { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.pagination .button { padding: 8px 11px; }
+.user-detail { margin-top: 24px; padding-top: 20px; border-top: 1px solid #dce5ef; }
+.user-detail ul { padding-left: 20px; line-height: 1.55; }
+.detail-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.detail-heading h4, .user-detail h5 { margin: 0; }
+.profile-card { max-width: 720px; }
+@media (max-width: 760px) { .auth-shell { grid-template-columns: 1fr; } .brand-panel { padding: 44px 28px; } .form-panel { padding-top: 36px; } .topbar { align-items: flex-start; flex-direction: column; } .filters { grid-template-columns: 1fr; } }

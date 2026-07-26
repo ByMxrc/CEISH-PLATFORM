@@ -1,6 +1,7 @@
 export { ApproveUserUseCase } from './approve-user.use-case';
 export { GetMembersUseCase } from './get-members.use-case';
 export { GetUserUseCase } from './get-user.use-case';
+export { GetAdminUserDetailUseCase } from './get-admin-user-detail.use-case';
 export { GetUsersUseCase } from './get-users.use-case';
 export { RejectUserUseCase } from './reject-user.use-case';
 export { SuspendUserUseCase } from './suspend-user.use-case';

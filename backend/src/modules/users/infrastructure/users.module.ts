@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '@modules/auth/auth.module';
 import {
   ApproveUserUseCase,
+  GetAdminUserDetailUseCase,
   GetMembersUseCase,
   GetUserUseCase,
   GetUsersUseCase,
@@ -26,6 +27,7 @@ import { UserPrismaRepository } from './repositories';
     UserDomainService,
     GetUsersUseCase,
     GetUserUseCase,
+    GetAdminUserDetailUseCase,
     ApproveUserUseCase,
     RejectUserUseCase,
     SuspendUserUseCase,
